@@ -1,4 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { type CLISession, fixturePath, spawnCLI } from "./harness";
 
 describe("action discovery", () => {
@@ -66,10 +69,16 @@ describe("action discovery", () => {
   });
 
   test("shows error when no .xcli directory exists", async () => {
-    cli = spawnCLI({ cwd: fixturePath("no-xcli-repo") });
-    const result = await cli.waitForExit();
-    // Should exit with error and helpful message
-    expect(result.exitCode).not.toBe(0);
-    expect(result.output + result.stderr).toContain(".xcli");
+    // Use a temp dir so findXcliDir can't walk up into a real .xcli
+    const tempDir = await mkdtemp(join(tmpdir(), "xcli-no-dir-"));
+    try {
+      cli = spawnCLI({ cwd: tempDir });
+      const result = await cli.waitForExit();
+      // Should exit with error and helpful message
+      expect(result.exitCode).not.toBe(0);
+      expect(result.output + result.stderr).toContain(".xcli");
+    } finally {
+      await rm(tempDir, { recursive: true, force: true });
+    }
   });
 });

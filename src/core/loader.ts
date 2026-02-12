@@ -1,6 +1,6 @@
 import { readdir } from "node:fs/promises";
 import { join } from "node:path";
-import type { Action, Runtime } from "../types.ts";
+import type { Action, ActionSource, Runtime } from "../types.ts";
 import { extractMetadata } from "./metadata.ts";
 
 const SUPPORTED_EXTENSIONS = new Set([
@@ -39,9 +39,12 @@ function runtimeFromExtension(ext: string): Runtime {
   }
 }
 
-export async function loadActions(actionsDir: string): Promise<Action[]> {
+export async function loadActions(
+  actionsDir: string,
+  source?: ActionSource,
+): Promise<Action[]> {
   const actions: Action[] = [];
-  await scanDirectory(actionsDir, actionsDir, [], actions, 0);
+  await scanDirectory(actionsDir, actionsDir, [], actions, 0, source);
   actions.sort((a, b) => a.meta.name.localeCompare(b.meta.name));
   return actions;
 }
@@ -52,6 +55,7 @@ async function scanDirectory(
   category: string[],
   actions: Action[],
   depth: number,
+  source?: ActionSource,
 ): Promise<void> {
   if (depth > 3) return;
 
@@ -74,6 +78,7 @@ async function scanDirectory(
         [...category, entry.name],
         actions,
         depth + 1,
+        source,
       );
     } else if (entry.isFile()) {
       const ext = `.${entry.name.split(".").pop()}`;
@@ -84,7 +89,9 @@ async function scanDirectory(
         readShebang(fullPath),
       ]);
       const idParts = [...category, entry.name.replace(/\.[^.]+$/, "")];
-      const id = idParts.join("/");
+      const rawId = idParts.join("/");
+      const id =
+        source && source.type !== "local" ? `${source.label}:${rawId}` : rawId;
 
       actions.push({
         id,
@@ -93,6 +100,7 @@ async function scanDirectory(
         category,
         runtime: runtimeFromExtension(ext),
         ...(shebang ? { shebang } : {}),
+        ...(source ? { source } : {}),
       });
     }
   }

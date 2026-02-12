@@ -40,6 +40,8 @@ export interface Action {
    * @example "#!/usr/bin/env zsh"
    */
   shebang?: string;
+  /** Where this action was loaded from */
+  source?: ActionSource;
 }
 
 /**
@@ -82,6 +84,8 @@ export interface MenuItem {
   description?: string;
   /** Action ID or category name used for selection */
   value: string;
+  /** Dimmed source label for external actions */
+  source?: string;
 }
 
 export interface NavigationState {
@@ -96,6 +100,35 @@ export type Screen =
   | { type: "output"; actionId: string }
   /** Confirmation prompt before running an action */
   | { type: "confirm"; actionId: string };
+
+export interface SourceConfig {
+  /** GitHub repo in "org/repo-name" format */
+  repo: string;
+  /**
+   * Git ref to fetch
+   * @default "main"
+   */
+  ref?: string;
+}
+
+export interface ActionSource {
+  /** Where this action was loaded from */
+  type: "local" | "github";
+  /**
+   * Display label for the source
+   * @example "meetsmore/xcli-scripts" or "local"
+   */
+  label: string;
+}
+
+export interface SourceMeta {
+  /** ISO timestamp of when this source was last fetched */
+  fetchedAt: string;
+  /** GitHub repo in "org/repo-name" format */
+  repo: string;
+  /** Git ref that was fetched */
+  ref: string;
+}
 
 export interface XcliConfig {
   /**
@@ -112,4 +145,6 @@ export interface XcliConfig {
     /** Shell command run after any action completes */
     after?: string;
   };
+  /** External GitHub repos to load actions from */
+  sources?: SourceConfig[];
 }
