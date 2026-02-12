@@ -133,4 +133,20 @@ describe("navigation", () => {
     const output = cli.getStrippedOutput();
     expect(output).toContain("Hello World");
   });
+
+  test("n key hint is shown in status bar", async () => {
+    cli = spawnCLI({ cwd: fixturePath("basic-repo") });
+    await cli.waitForText("n new");
+  });
+
+  test("pressing n during search types n into search query", async () => {
+    cli = spawnCLI({ cwd: fixturePath("basic-repo") });
+    await cli.waitForText("Hello World");
+    // Enter search mode
+    cli.type("/");
+    await cli.waitForText("/ ");
+    // Type 'n' — should add to search query, not trigger generation
+    cli.type("n");
+    await cli.waitForText("/ n");
+  });
 });

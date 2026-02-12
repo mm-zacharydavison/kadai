@@ -99,7 +99,9 @@ export type Screen =
   /** Output display for a running or completed action */
   | { type: "output"; actionId: string }
   /** Confirmation prompt before running an action */
-  | { type: "confirm"; actionId: string };
+  | { type: "confirm"; actionId: string }
+  /** Transitional: signals cli.tsx to hand terminal control to an external process */
+  | { type: "handover" };
 
 export interface SourceConfig {
   /** GitHub repo in "org/repo-name" format */
@@ -128,6 +130,11 @@ export interface SourceMeta {
   repo: string;
   /** Git ref that was fetched */
   ref: string;
+}
+
+export interface GenerationResult {
+  /** Actions that were newly created or modified during AI generation */
+  newActions: Action[];
 }
 
 export interface XcliConfig {

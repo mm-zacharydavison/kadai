@@ -1,20 +1,38 @@
 import { Box, Text, useApp } from "ink";
+import { useState } from "react";
 import { ActionOutput } from "./components/ActionOutput.tsx";
 import { Breadcrumbs } from "./components/Breadcrumbs.tsx";
+import { ShareScreen } from "./components/ShareScreen.tsx";
 import { StatusBar } from "./components/StatusBar.tsx";
 import { useActions } from "./hooks/useActions.ts";
 import { useKeyboard } from "./hooks/useKeyboard.ts";
 import { useNavigation } from "./hooks/useNavigation.ts";
 import { useSearch } from "./hooks/useSearch.ts";
-import type { Action, MenuItem } from "./types.ts";
+import type { Action, GenerationResult, MenuItem } from "./types.ts";
 
 interface AppProps {
   cwd: string;
   xcliDir: string;
+  onRequestHandover?: () => void;
+  generationResult?: GenerationResult;
+  /** GitHub org name from git remote (for share path default) */
+  org?: string;
+  /** Git user name (for share path default) */
+  userName?: string;
 }
 
-export function App({ cwd, xcliDir }: AppProps) {
+export function App({
+  cwd,
+  xcliDir,
+  onRequestHandover,
+  generationResult,
+  org,
+  userName,
+}: AppProps) {
   const { exit } = useApp();
+  const [showShareScreen, setShowShareScreen] = useState(
+    () => (generationResult?.newActions.length ?? 0) > 0,
+  );
 
   const search = useSearch();
   const nav = useNavigation({ onExit: exit, onNavigate: search.resetSearch });
@@ -45,10 +63,23 @@ export function App({ cwd, xcliDir }: AppProps) {
     exit,
     getMenuItems,
     computeFiltered: search.computeFiltered,
+    onRequestHandover,
   });
 
   if (loading) {
     return <Text dimColor>Loading actions...</Text>;
+  }
+
+  if (showShareScreen && generationResult) {
+    return (
+      <ShareScreen
+        newActions={generationResult.newActions}
+        sources={config.sources ?? []}
+        org={org}
+        userName={userName}
+        onDone={() => setShowShareScreen(false)}
+      />
+    );
   }
 
   if (nav.currentScreen.type === "menu") {

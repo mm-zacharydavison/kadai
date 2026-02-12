@@ -17,6 +17,7 @@ interface UseKeyboardOptions {
   exit: () => void;
   getMenuItems: (actions: Action[], path: string[]) => MenuItem[];
   computeFiltered: (items: MenuItem[], query: string) => MenuItem[];
+  onRequestHandover?: () => void;
 }
 
 export function useKeyboard({
@@ -35,6 +36,7 @@ export function useKeyboard({
   exit,
   getMenuItems,
   computeFiltered,
+  onRequestHandover,
 }: UseKeyboardOptions) {
   useInput((input, key) => {
     const screen = stackRef.current.at(-1) as Screen;
@@ -44,6 +46,9 @@ export function useKeyboard({
       if (key.escape) popScreen();
       return;
     }
+
+    // AI generate screen: no keyboard handling (transitional state)
+    if (screen.type === "handover") return;
 
     // Confirm screen: ENTER to confirm, ESC to cancel
     if (screen.type === "confirm") {
@@ -61,6 +66,9 @@ export function useKeyboard({
       if (key.escape) popScreen();
       return;
     }
+
+    // From here, screen must be "menu"
+    if (screen.type !== "menu") return;
 
     // Menu screen — search mode
     if (searchActiveRef.current) {
@@ -127,6 +135,10 @@ export function useKeyboard({
     }
     if (input === "q") {
       exit();
+      return;
+    }
+    if (input === "n" && onRequestHandover) {
+      onRequestHandover();
       return;
     }
     if (key.escape) {

@@ -41,3 +41,15 @@ export async function detectRepoIdentity(
     return null;
   }
 }
+
+/**
+ * Get the current git user name from git config.
+ */
+export async function getGitUserName(): Promise<string | null> {
+  try {
+    const name = await Bun.$`git config user.name`.quiet().text();
+    return name.trim() || null;
+  } catch {
+    return null;
+  }
+}
