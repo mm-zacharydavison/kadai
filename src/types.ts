@@ -154,4 +154,12 @@ export interface XcliConfig {
   };
   /** External GitHub repos to load actions from */
   sources?: SourceConfig[];
+  /** AI generation settings */
+  ai?: {
+    /**
+     * Enable AI action generation via Claude CLI
+     * @default true
+     */
+    enabled?: boolean;
+  };
 }

@@ -22,5 +22,6 @@ export async function loadConfig(xcliDir: string): Promise<XcliConfig> {
     env: userConfig.env ?? DEFAULT_CONFIG.env,
     hooks: userConfig.hooks,
     sources: userConfig.sources,
+    ai: userConfig.ai,
   };
 }

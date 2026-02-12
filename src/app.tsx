@@ -47,6 +47,8 @@ export function App({
     return buildMenuItems(actionsList, path);
   };
 
+  const aiEnabled = config.ai?.enabled !== false;
+
   useKeyboard({
     stackRef: nav.stackRef,
     actionsRef,
@@ -64,6 +66,7 @@ export function App({
     getMenuItems,
     computeFiltered: search.computeFiltered,
     onRequestHandover,
+    aiEnabled,
   });
 
   if (loading) {
@@ -115,7 +118,7 @@ export function App({
             </Box>
           ))
         )}
-        <StatusBar syncing={syncing} />
+        <StatusBar syncing={syncing} aiEnabled={aiEnabled} />
       </Box>
     );
   }

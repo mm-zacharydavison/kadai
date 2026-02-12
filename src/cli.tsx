@@ -6,9 +6,10 @@ import React from "react";
 import { generate } from "./ai/generate.ts";
 import { getDefaultProvider } from "./ai/provider.ts";
 import { App } from "./app.tsx";
+import { InitWizard } from "./components/InitWizard.tsx";
 import { loadConfig } from "./core/config.ts";
 import { detectRepoIdentity, getGitUserName } from "./core/git-utils.ts";
-import { initXcli } from "./core/init.ts";
+import { defaultDeps, type InitResult } from "./core/init-wizard.ts";
 import { findXcliDir } from "./core/loader.ts";
 import type { GenerationResult } from "./types.ts";
 
@@ -17,16 +18,26 @@ const cwd = process.cwd();
 let xcliDir = findXcliDir(cwd);
 if (!xcliDir) {
   if (!process.stdin.isTTY) {
-    // Non-interactive: error out
     process.stderr.write(
       "Error: No .xcli directory found. Create a .xcli/actions/ directory to get started.\n",
     );
     process.exit(1);
   }
-  // Interactive: auto-initialize
-  console.log("No .xcli directory found. Initializing...");
-  xcliDir = await initXcli(cwd);
-  console.log("Created .xcli/actions/ with a sample action.\n");
+  const initResult = await new Promise<InitResult>((resolve) => {
+    const instance = render(
+      React.createElement(InitWizard, {
+        cwd,
+        deps: defaultDeps(),
+        detectRepoIdentity,
+        onDone: (result) => {
+          instance.unmount();
+          resolve(result);
+        },
+      }),
+      { stdout: process.stdout, stderr: process.stderr },
+    );
+  });
+  xcliDir = initResult.xcliDir;
 }
 
 function createStdinStream(): NodeJS.ReadStream {

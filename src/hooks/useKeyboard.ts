@@ -18,6 +18,7 @@ interface UseKeyboardOptions {
   getMenuItems: (actions: Action[], path: string[]) => MenuItem[];
   computeFiltered: (items: MenuItem[], query: string) => MenuItem[];
   onRequestHandover?: () => void;
+  aiEnabled?: boolean;
 }
 
 export function useKeyboard({
@@ -37,6 +38,7 @@ export function useKeyboard({
   getMenuItems,
   computeFiltered,
   onRequestHandover,
+  aiEnabled = true,
 }: UseKeyboardOptions) {
   useInput((input, key) => {
     const screen = stackRef.current.at(-1) as Screen;
@@ -137,7 +139,7 @@ export function useKeyboard({
       exit();
       return;
     }
-    if (input === "n" && onRequestHandover) {
+    if (input === "n" && aiEnabled && onRequestHandover) {
       onRequestHandover();
       return;
     }

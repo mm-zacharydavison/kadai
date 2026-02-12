@@ -1,7 +1,15 @@
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
+import type { SourceConfig } from "../types.ts";
+import { generateConfigFile } from "./init-wizard.ts";
 
-export async function initXcli(cwd: string): Promise<string> {
+export async function initXcli(
+  cwd: string,
+  options?: {
+    sources?: SourceConfig[];
+    aiEnabled?: boolean;
+  },
+): Promise<string> {
   const xcliDir = join(cwd, ".xcli");
   const actionsDir = join(xcliDir, "actions");
 
@@ -22,6 +30,15 @@ echo "Hello from xcli!"
 echo "Add your own scripts to .xcli/actions/ to get started."
 `,
     );
+  }
+
+  // Write config.ts if sources or AI settings are provided
+  if (options) {
+    const configContent = generateConfigFile({
+      sources: options.sources ?? [],
+      aiEnabled: options.aiEnabled ?? true,
+    });
+    await Bun.write(join(xcliDir, "config.ts"), configContent);
   }
 
   return xcliDir;
