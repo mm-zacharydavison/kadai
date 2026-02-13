@@ -25,7 +25,6 @@ export async function loadConfig(xcliDir: string): Promise<XcliConfig> {
     ai: userConfig.ai,
     share: userConfig.share,
     org: userConfig.org,
-    userName: userConfig.userName,
     autoNavigate: userConfig.autoNavigate,
   };
 }

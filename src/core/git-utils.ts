@@ -53,3 +53,16 @@ export async function getGitUserName(): Promise<string | null> {
     return null;
   }
 }
+
+/**
+ * Get the authenticated GitHub username via the gh CLI.
+ * Returns null if gh is not installed or not authenticated.
+ */
+export async function getGitHubUsername(): Promise<string | null> {
+  try {
+    const login = await Bun.$`gh api user --jq .login`.quiet().text();
+    return login.trim() || null;
+  } catch {
+    return null;
+  }
+}

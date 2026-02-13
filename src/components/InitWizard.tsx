@@ -1,7 +1,7 @@
 import fuzzysort from "fuzzysort";
 import { Box, Text, useInput } from "ink";
 import Spinner from "ink-spinner";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import {
   createXcliActionsRepo,
   detectAiCli,
@@ -57,9 +57,6 @@ export function InitWizard({ cwd, deps, onDone }: InitWizardProps) {
   const aiEnabledRef = useRef(false);
   const [orgName, setOrgName] = useState<string | undefined>(undefined);
   const orgNameRef = useRef<string | undefined>(undefined);
-  const [, setUserName] = useState<string | undefined>(undefined);
-  const userNameRef = useRef<string | undefined>(undefined);
-
   // Org list for create-repo flow
   const [, setOrgs] = useState<OrgInfo[]>([]);
   const orgsRef = useRef<OrgInfo[]>([]);
@@ -124,16 +121,6 @@ export function InitWizard({ cwd, deps, onDone }: InitWizardProps) {
     reviewerSearchRef.current = v;
     setReviewerSearch(v);
   };
-
-  // Fetch git user name on mount
-  useEffect(() => {
-    deps.getGitUserName().then((name) => {
-      if (name) {
-        userNameRef.current = name;
-        setUserName(name);
-      }
-    });
-  }, [deps]);
 
   // Phase 1 options: Where should actions live?
   const locationOptions = [
@@ -550,7 +537,6 @@ export function InitWizard({ cwd, deps, onDone }: InitWizardProps) {
     const sources = sourcesRef.current;
     const share = shareConfigRef.current;
     const org = orgNameRef.current;
-    const userName = userNameRef.current;
 
     // Build autoNavigate from source repo if available
     let autoNavigate: string[] | undefined;
@@ -566,7 +552,6 @@ export function InitWizard({ cwd, deps, onDone }: InitWizardProps) {
       aiEnabled: aiEnabledRef.current,
       share,
       org,
-      userName,
       autoNavigate,
     };
 

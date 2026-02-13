@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { Box, Text, useInput } from "ink";
 import Spinner from "ink-spinner";
 import { useEffect, useRef, useState } from "react";
+import { getGitHubUsername } from "../core/git-utils.ts";
 import { runAction } from "../core/runner.ts";
 import { type ShareResult, shareToSource } from "../core/share.ts";
 import type { Action, SourceConfig, XcliConfig } from "../types.ts";
@@ -21,6 +22,8 @@ interface ShareScreenProps {
   cwd: string;
   config?: XcliConfig;
   xcliDir?: string;
+  /** Fetch the current user's GitHub username. Defaults to gh CLI lookup. */
+  fetchUsername?: () => Promise<string | null>;
   onDone: (result?: { source?: SourceConfig; targetPath: string }) => void;
 }
 
@@ -30,10 +33,13 @@ export function ShareScreen({
   cwd,
   config,
   xcliDir,
+  fetchUsername = getGitHubUsername,
   onDone,
 }: ShareScreenProps) {
   const org = config?.org;
-  const userName = config?.userName;
+  const [resolvedUserName, setResolvedUserName] = useState<string | undefined>(
+    undefined,
+  );
 
   const afterTestRun: Step = sources.length > 0 ? "pick-source" : "pick-path";
   const initialStep: Step = newActions.length > 0 ? "test-run" : afterTestRun;
@@ -60,7 +66,15 @@ export function ShareScreen({
   // Share result state
   const [shareResult, setShareResult] = useState<ShareResult | null>(null);
 
-  const defaultPath = buildDefaultPath(org, userName);
+  useEffect(() => {
+    fetchUsername().then((ghUsername) => {
+      if (ghUsername) {
+        setResolvedUserName(ghUsername);
+      }
+    });
+  }, [fetchUsername]);
+
+  const defaultPath = buildDefaultPath(org, resolvedUserName);
 
   const sourceOptions = [
     { label: "Keep in .xcli", value: undefined as string | undefined },

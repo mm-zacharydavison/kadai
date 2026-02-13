@@ -17,7 +17,6 @@ export interface InitDeps {
   ) => Promise<CmdResult>;
   ghRepoCreate: (repoName: string) => Promise<CmdResult>;
   bunWhich: (name: string) => string | null;
-  getGitUserName: () => Promise<string | null>;
 }
 
 export function defaultDeps(): InitDeps {
@@ -68,14 +67,6 @@ export function defaultDeps(): InitDeps {
     },
     bunWhich(name: string): string | null {
       return Bun.which(name);
-    },
-    async getGitUserName(): Promise<string | null> {
-      try {
-        const name = await Bun.$`git config user.name`.quiet().text();
-        return name.trim() || null;
-      } catch {
-        return null;
-      }
     },
   };
 }
@@ -231,12 +222,11 @@ export interface GenerateConfigOptions {
   aiEnabled: boolean;
   share?: ShareConfig;
   org?: string;
-  userName?: string;
   autoNavigate?: string[];
 }
 
 export function generateConfigFile(options: GenerateConfigOptions): string {
-  const { sources, aiEnabled, share, org, userName, autoNavigate } = options;
+  const { sources, aiEnabled, share, org, autoNavigate } = options;
   const activeLines: string[] = [];
   const commentedLines: string[] = [];
 
@@ -276,10 +266,6 @@ export function generateConfigFile(options: GenerateConfigOptions): string {
   if (org) {
     activeLines.push(`  org: "${org}",`);
   }
-  if (userName) {
-    activeLines.push(`  userName: "${userName}",`);
-  }
-
   // Auto-navigate
   if (autoNavigate && autoNavigate.length > 0) {
     const items = autoNavigate.map((p) => `"${p}"`).join(", ");

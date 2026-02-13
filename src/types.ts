@@ -179,8 +179,6 @@ export interface XcliConfig {
   share?: ShareConfig;
   /** GitHub org name, written during init */
   org?: string;
-  /** Git user name, written during init */
-  userName?: string;
   /** Category path to auto-navigate to on startup (e.g. ["@org", "repo"]) */
   autoNavigate?: string[];
 }

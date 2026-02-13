@@ -139,11 +139,11 @@ describe("ShareScreen", () => {
     expect(output).toContain("(Deploy to staging)");
   });
 
-  // --- org/userName from config ---
+  // --- org/username from runtime ---
 
-  test("reads org and userName from config for default path", async () => {
+  test("uses runtime GitHub username for default path", async () => {
     const actions = [makeAction()];
-    const config: XcliConfig = { org: "acme", userName: "alice" };
+    const config: XcliConfig = { org: "acme" };
 
     const { lastFrame, stdin } = render(
       React.createElement(ShareScreen, {
@@ -151,15 +151,44 @@ describe("ShareScreen", () => {
         sources: [],
         cwd: "/tmp",
         config,
+        fetchUsername: async () => "alice",
         onDone: () => {},
       }),
     );
+
+    // Wait for useEffect to resolve
+    await tick();
 
     stdin.write("s");
     await tick();
 
     const output = stripAnsi(lastFrame() ?? "");
     expect(output).toContain("actions/@acme/alice");
+  });
+
+  test("no username defaults to org-only path", async () => {
+    const actions = [makeAction()];
+    const config: XcliConfig = { org: "acme" };
+
+    const { lastFrame, stdin } = render(
+      React.createElement(ShareScreen, {
+        newActions: actions,
+        sources: [],
+        cwd: "/tmp",
+        config,
+        fetchUsername: async () => null,
+        onDone: () => {},
+      }),
+    );
+
+    await tick();
+
+    stdin.write("s");
+    await tick();
+
+    const output = stripAnsi(lastFrame() ?? "");
+    expect(output).toContain("actions/@acme");
+    expect(output).not.toContain("actions/@acme/");
   });
 
   // --- inline custom path field ---
@@ -296,23 +325,23 @@ describe("ShareScreen", () => {
     expect(output).not.toContain("@");
   });
 
-  test("userName without org defaults to actions/", async () => {
+  test("username without org defaults to actions/", async () => {
     let doneResult: unknown;
     const actions = [makeAction()];
-    const config: XcliConfig = { userName: "alice" };
 
     const { stdin } = render(
       React.createElement(ShareScreen, {
         newActions: actions,
         sources: [],
-        config,
         cwd: "/tmp",
+        fetchUsername: async () => "alice",
         onDone: (result) => {
           doneResult = result;
         },
       }),
     );
 
+    await tick();
     stdin.write("s");
     await tick();
 
@@ -362,7 +391,7 @@ describe("ShareScreen", () => {
 
   test("shows path picker after skipping test-run (no sources)", async () => {
     const actions = [makeAction()];
-    const config: XcliConfig = { org: "acme", userName: "alice" };
+    const config: XcliConfig = { org: "acme" };
 
     const { lastFrame, stdin } = render(
       React.createElement(ShareScreen, {
@@ -370,10 +399,12 @@ describe("ShareScreen", () => {
         sources: [],
         config,
         cwd: "/tmp",
+        fetchUsername: async () => "alice",
         onDone: () => {},
       }),
     );
 
+    await tick();
     stdin.write("s");
     await tick();
 
@@ -413,12 +444,14 @@ describe("ShareScreen", () => {
         newActions: actions,
         sources: [],
         cwd: "/tmp",
+        fetchUsername: async () => null,
         onDone: () => {
           doneCalled = true;
         },
       }),
     );
 
+    await tick();
     stdin.write("s"); // skip test-run
     await tick();
     stdin.write("\x1b"); // esc from path picker
@@ -450,7 +483,7 @@ describe("ShareScreen", () => {
   test("confirming default path (no sources) returns path without source", async () => {
     let doneResult: unknown;
     const actions = [makeAction()];
-    const config: XcliConfig = { org: "acme", userName: "alice" };
+    const config: XcliConfig = { org: "acme" };
 
     const { stdin } = render(
       React.createElement(ShareScreen, {
@@ -458,12 +491,14 @@ describe("ShareScreen", () => {
         sources: [],
         config,
         cwd: "/tmp",
+        fetchUsername: async () => "alice",
         onDone: (result) => {
           doneResult = result;
         },
       }),
     );
 
+    await tick();
     stdin.write("s"); // skip test-run
     await tick();
     stdin.write("\r"); // confirm default path
@@ -477,7 +512,7 @@ describe("ShareScreen", () => {
   test("'Keep in .xcli' goes to path picker", async () => {
     const actions = [makeAction()];
     const sources: SourceConfig[] = [{ repo: "myorg/shared-ops" }];
-    const config: XcliConfig = { org: "acme", userName: "bob" };
+    const config: XcliConfig = { org: "acme" };
 
     const { lastFrame, stdin } = render(
       React.createElement(ShareScreen, {
@@ -485,10 +520,12 @@ describe("ShareScreen", () => {
         sources,
         config,
         cwd: "/tmp",
+        fetchUsername: async () => "bob",
         onDone: () => {},
       }),
     );
 
+    await tick();
     stdin.write("s"); // skip test-run
     await tick();
     // "Keep in .xcli" is first option, press enter
@@ -503,7 +540,7 @@ describe("ShareScreen", () => {
   test("selecting external source goes to path picker", async () => {
     const actions = [makeAction()];
     const sources: SourceConfig[] = [{ repo: "myorg/shared-ops" }];
-    const config: XcliConfig = { org: "meetsmore", userName: "alice" };
+    const config: XcliConfig = { org: "meetsmore" };
 
     const { lastFrame, stdin } = render(
       React.createElement(ShareScreen, {
@@ -511,10 +548,12 @@ describe("ShareScreen", () => {
         sources,
         config,
         cwd: "/tmp",
+        fetchUsername: async () => "alice",
         onDone: () => {},
       }),
     );
 
+    await tick();
     stdin.write("s"); // skip test-run
     await tick();
     stdin.write("j");
@@ -531,7 +570,7 @@ describe("ShareScreen", () => {
     let doneResult: unknown;
     const actions = [makeAction()];
     const sources: SourceConfig[] = [{ repo: "myorg/shared-ops" }];
-    const config: XcliConfig = { org: "meetsmore", userName: "alice" };
+    const config: XcliConfig = { org: "meetsmore" };
 
     const { stdin } = render(
       React.createElement(ShareScreen, {
@@ -539,12 +578,14 @@ describe("ShareScreen", () => {
         sources,
         config,
         cwd: "/tmp",
+        fetchUsername: async () => "alice",
         onDone: (result) => {
           doneResult = result;
         },
       }),
     );
 
+    await tick();
     stdin.write("s"); // skip test-run
     await tick();
     // Select external source
@@ -585,7 +626,7 @@ describe("ShareScreen", () => {
   test("esc from path picker goes back to source picker", async () => {
     const actions = [makeAction()];
     const sources: SourceConfig[] = [{ repo: "myorg/shared-ops" }];
-    const config: XcliConfig = { org: "meetsmore", userName: "alice" };
+    const config: XcliConfig = { org: "meetsmore" };
 
     const { lastFrame, stdin } = render(
       React.createElement(ShareScreen, {
@@ -593,11 +634,15 @@ describe("ShareScreen", () => {
         sources,
         config,
         cwd: "/tmp",
+        fetchUsername: async () => "alice",
         onDone: () => {},
       }),
     );
 
+    await tick();
+
     stdin.write("s"); // skip test-run
+    await tick();
     await tick();
 
     // Select "Keep in .xcli" to go to path picker

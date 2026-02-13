@@ -25,7 +25,6 @@ function makeDeps(overrides: Partial<InitDeps> = {}): InitDeps {
     ghApi: async () => ({ exitCode: 1, stdout: "", stderr: "not found" }),
     ghRepoCreate: async () => ({ exitCode: 1, stdout: "", stderr: "" }),
     bunWhich: () => null,
-    getGitUserName: async () => null,
     ...overrides,
   };
 }
@@ -258,15 +257,14 @@ describe("generateConfigFile", () => {
     expect(config).not.toContain("share:");
   });
 
-  test("includes org and userName", () => {
+  test("includes org but not userName", () => {
     const config = generateConfigFile({
       sources: [],
       aiEnabled: true,
       org: "myorg",
-      userName: "alice",
     });
     expect(config).toContain('org: "myorg"');
-    expect(config).toContain('userName: "alice"');
+    expect(config).not.toContain("userName");
   });
 
   test("includes autoNavigate", () => {
@@ -350,7 +348,6 @@ describe("writeInitFiles", () => {
         aiEnabled: true,
         share: { strategy: "pr", reviewer: "bob" },
         org: "org",
-        userName: "alice",
       });
       const configContent = await Bun.file(
         join(tmpDir, ".xcli", "config.ts"),
@@ -358,7 +355,7 @@ describe("writeInitFiles", () => {
       expect(configContent).toContain('strategy: "pr"');
       expect(configContent).toContain('reviewer: "bob"');
       expect(configContent).toContain('org: "org"');
-      expect(configContent).toContain('userName: "alice"');
+      expect(configContent).not.toContain("userName");
     } finally {
       rmSync(tmpDir, { recursive: true, force: true });
     }
@@ -827,7 +824,7 @@ describe("InitWizard", () => {
     rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  test("writes config with org and userName from existing repo", async () => {
+  test("writes config with org but not userName from existing repo", async () => {
     const deps = makeDeps({
       ghApi: async (endpoint: string) => {
         if (endpoint === "repos/myorg/shared") {
@@ -843,7 +840,6 @@ describe("InitWizard", () => {
         return { exitCode: 1, stdout: "", stderr: "" };
       },
       bunWhich: () => null,
-      getGitUserName: async () => "alice",
     });
 
     const { stdin, tmpDir } = renderWizard({ deps });
@@ -878,7 +874,7 @@ describe("InitWizard", () => {
       join(tmpDir, ".xcli", "config.ts"),
     ).text();
     expect(configContent).toContain('org: "myorg"');
-    expect(configContent).toContain('userName: "alice"');
+    expect(configContent).not.toContain("userName");
 
     rmSync(tmpDir, { recursive: true, force: true });
   });

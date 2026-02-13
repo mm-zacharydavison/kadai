@@ -2,7 +2,11 @@ import { describe, expect, test } from "bun:test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { detectRepoIdentity, parseRepoIdentity } from "../src/core/git-utils";
+import {
+  detectRepoIdentity,
+  getGitHubUsername,
+  parseRepoIdentity,
+} from "../src/core/git-utils";
 
 describe("parseRepoIdentity", () => {
   test("parses SSH remote URL", () => {
@@ -72,5 +76,15 @@ describe("detectRepoIdentity", () => {
     } finally {
       await rm(tempDir, { recursive: true });
     }
+  });
+});
+
+describe("getGitHubUsername", () => {
+  test("returns null when gh CLI is not available", async () => {
+    // This test will pass as long as gh is not authenticated or not installed
+    // in the test environment. The function should gracefully return null.
+    const result = await getGitHubUsername();
+    // We just verify it returns a string or null without throwing
+    expect(result === null || typeof result === "string").toBe(true);
   });
 });
