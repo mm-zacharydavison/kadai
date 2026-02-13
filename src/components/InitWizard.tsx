@@ -6,14 +6,13 @@ import {
   createXcliActionsRepo,
   detectAiCli,
   fetchGitHubUsername,
-  fetchOrgMembers,
   fetchOrgs,
-  fetchRepoCollaborators,
+  fetchReviewerOptions,
   type GenerateConfigOptions,
   type InitDeps,
   type InitResult,
-  type MemberInfo,
   type OrgInfo,
+  type ReviewerOption,
   setupBranchProtection,
   validateRepo,
   writeInitFiles,
@@ -63,9 +62,11 @@ export function InitWizard({ cwd, deps, onDone }: InitWizardProps) {
   const [, setGhUsername] = useState<string | null>(null);
   const ghUsernameRef = useRef<string | null>(null);
 
-  // Member list for reviewer selection
-  const [, setMembers] = useState<MemberInfo[]>([]);
-  const membersRef = useRef<MemberInfo[]>([]);
+  // Reviewer options for multi-select
+  const [, setReviewerOptions] = useState<ReviewerOption[]>([]);
+  const reviewerOptionsRef = useRef<ReviewerOption[]>([]);
+  const selectedReviewersRef = useRef<Set<string>>(new Set());
+  const [, setSelectedReviewersVersion] = useState(0);
   const [reviewerSearch, setReviewerSearch] = useState("");
   const reviewerSearchRef = useRef("");
 
@@ -113,9 +114,18 @@ export function InitWizard({ cwd, deps, onDone }: InitWizardProps) {
     orgNameRef.current = v;
     setOrgName(v);
   };
-  const updateMembers = (m: MemberInfo[]) => {
-    membersRef.current = m;
-    setMembers(m);
+  const updateReviewerOptions = (opts: ReviewerOption[]) => {
+    reviewerOptionsRef.current = opts;
+    setReviewerOptions(opts);
+  };
+  const toggleReviewer = (value: string) => {
+    const set = selectedReviewersRef.current;
+    if (set.has(value)) {
+      set.delete(value);
+    } else {
+      set.add(value);
+    }
+    setSelectedReviewersVersion((v) => v + 1);
   };
   const updateReviewerSearch = (v: string) => {
     reviewerSearchRef.current = v;
@@ -163,20 +173,19 @@ export function InitWizard({ cwd, deps, onDone }: InitWizardProps) {
     })),
   ];
 
-  // Build reviewer options from members list with fuzzysort filtering
-  function getFilteredReviewerOptions(): string[] {
-    const skipOption = "No reviewer (skip)";
-    const memberLogins = membersRef.current.map((m) => m.login);
+  // Build reviewer options from reviewer options list with fuzzysort filtering
+  function getFilteredReviewerOptions(): ReviewerOption[] {
+    const allOptions = reviewerOptionsRef.current;
 
     if (!reviewerSearchRef.current) {
-      return [skipOption, ...memberLogins];
+      return allOptions;
     }
 
     const filtered = fuzzysort
-      .go(reviewerSearchRef.current, memberLogins)
-      .map((r) => r.target);
+      .go(reviewerSearchRef.current, allOptions, { key: "label" })
+      .map((r) => r.obj);
 
-    return [skipOption, ...filtered];
+    return filtered;
   }
 
   useInput((input, key) => {
@@ -228,7 +237,7 @@ export function InitWizard({ cwd, deps, onDone }: InitWizardProps) {
       return;
     }
 
-    // ─── enter-reviewer: text input fallback ───
+    // ─── enter-reviewer: text input fallback (comma-separated) ───
     if (cur === "enter-reviewer") {
       if (key.escape) {
         updateReviewerInput("");
@@ -237,10 +246,16 @@ export function InitWizard({ cwd, deps, onDone }: InitWizardProps) {
         return;
       }
       if (key.return) {
-        const reviewer = reviewerInputRef.current.trim();
+        const raw = reviewerInputRef.current.trim();
         const existing = shareConfigRef.current;
-        if (reviewer) {
-          updateShareConfig({ ...existing, strategy: "pr", reviewer });
+        if (raw) {
+          const reviewers = raw
+            .split(",")
+            .map((r) => r.trim())
+            .filter(Boolean);
+          if (reviewers.length > 0) {
+            updateShareConfig({ ...existing, strategy: "pr", reviewers });
+          }
         }
         updateIndex(0);
         updatePhase("choose-ai");
@@ -256,27 +271,43 @@ export function InitWizard({ cwd, deps, onDone }: InitWizardProps) {
       return;
     }
 
-    // ─── choose-reviewer: searchable member list ───
+    // ─── choose-reviewer: multi-select with checkboxes ───
     if (cur === "choose-reviewer") {
       if (key.escape) {
         updateReviewerSearch("");
+        selectedReviewersRef.current = new Set();
         updateIndex(0);
         updatePhase("choose-push-strategy");
         return;
       }
+      // Tab = confirm shortcut
+      if (key.tab) {
+        confirmReviewerSelection();
+        return;
+      }
+      const options = getFilteredReviewerOptions();
+      const doneRowIndex = options.length;
       if (key.return) {
-        const options = getFilteredReviewerOptions();
-        const selected = options[selectedIndexRef.current];
-        if (selected && selected !== "No reviewer (skip)") {
-          updateShareConfig({
-            ...shareConfigRef.current,
-            strategy: "pr",
-            reviewer: selected,
-          });
+        // Enter on "Done" row → confirm
+        if (selectedIndexRef.current === doneRowIndex) {
+          confirmReviewerSelection();
+          return;
         }
-        updateReviewerSearch("");
-        updateIndex(0);
-        updatePhase("choose-ai");
+        // Enter on an item → toggle
+        const option = options[selectedIndexRef.current];
+        if (option) {
+          toggleReviewer(option.value);
+        }
+        return;
+      }
+      if (input === " ") {
+        // Space → toggle current item (not on Done row)
+        if (selectedIndexRef.current < doneRowIndex) {
+          const option = options[selectedIndexRef.current];
+          if (option) {
+            toggleReviewer(option.value);
+          }
+        }
         return;
       }
       if (key.upArrow || input === "k") {
@@ -284,8 +315,7 @@ export function InitWizard({ cwd, deps, onDone }: InitWizardProps) {
         return;
       }
       if (key.downArrow || input === "j") {
-        const options = getFilteredReviewerOptions();
-        updateIndex(Math.min(options.length - 1, selectedIndexRef.current + 1));
+        updateIndex(Math.min(doneRowIndex, selectedIndexRef.current + 1));
         return;
       }
       if (key.backspace || key.delete) {
@@ -293,7 +323,14 @@ export function InitWizard({ cwd, deps, onDone }: InitWizardProps) {
         updateIndex(0);
         return;
       }
-      if (!key.ctrl && !key.meta && input && input !== "j" && input !== "k") {
+      if (
+        !key.ctrl &&
+        !key.meta &&
+        input &&
+        input !== "j" &&
+        input !== "k" &&
+        input !== " "
+      ) {
         updateReviewerSearch(reviewerSearchRef.current + input);
         updateIndex(0);
       }
@@ -493,37 +530,49 @@ export function InitWizard({ cwd, deps, onDone }: InitWizardProps) {
     }
   }
 
+  function confirmReviewerSelection() {
+    const reviewers = Array.from(selectedReviewersRef.current);
+    if (reviewers.length > 0) {
+      updateShareConfig({
+        ...shareConfigRef.current,
+        strategy: "pr",
+        reviewers,
+      });
+    }
+    updateReviewerSearch("");
+    selectedReviewersRef.current = new Set();
+    updateIndex(0);
+    updatePhase("choose-ai");
+  }
+
+  function fetchReviewersFromRepo(repo: string) {
+    fetchReviewerOptions(repo, deps).then((options) => {
+      if (options.length > 0) {
+        updateReviewerOptions(options);
+        updatePhase("choose-reviewer");
+      } else {
+        updateReviewerInput("");
+        updatePhase("enter-reviewer");
+      }
+    });
+  }
+
   function startFetchingMembers() {
     updatePhase("fetching-members");
     updateReviewerSearch("");
+    selectedReviewersRef.current = new Set();
     updateIndex(0);
 
-    const repo = sourcesRef.current[0]?.repo;
-    if (!repo) {
-      // No source repo — fall back to text input
-      updateReviewerInput("");
-      updatePhase("enter-reviewer");
+    const sourceRepo = sourcesRef.current[0]?.repo;
+    if (sourceRepo) {
+      fetchReviewersFromRepo(sourceRepo);
       return;
     }
 
-    const [repoOrg] = repo.split("/");
-
-    fetchRepoCollaborators(repo, deps).then((collaborators) => {
-      if (collaborators.length > 0) {
-        updateMembers(collaborators);
-        updatePhase("choose-reviewer");
-      } else if (repoOrg) {
-        // Fallback to org members
-        fetchOrgMembers(repoOrg, deps).then((orgMembers) => {
-          if (orgMembers.length > 0) {
-            updateMembers(orgMembers);
-            updatePhase("choose-reviewer");
-          } else {
-            // No members found — fall back to text input
-            updateReviewerInput("");
-            updatePhase("enter-reviewer");
-          }
-        });
+    // No source repo — detect from current git remote
+    deps.detectRepo(cwd).then((identity) => {
+      if (identity) {
+        fetchReviewersFromRepo(`${identity.org}/${identity.repo}`);
       } else {
         updateReviewerInput("");
         updatePhase("enter-reviewer");
@@ -726,15 +775,36 @@ export function InitWizard({ cwd, deps, onDone }: InitWizardProps) {
               <Text>{reviewerSearch}</Text>
             </Box>
           )}
-          {filteredReviewerOptions.map((label, i) => (
-            <Text key={label} color={i === selectedIndex ? "cyan" : undefined}>
-              {i === selectedIndex ? "❯ " : "  "}
-              {label}
-            </Text>
-          ))}
+          {filteredReviewerOptions.map((opt, i) => {
+            const checked = selectedReviewersRef.current.has(opt.value);
+            const prefix = i === selectedIndex ? "❯ " : "  ";
+            const checkbox = checked ? "[x]" : "[ ]";
+            const teamTag = opt.type === "team" ? " (team)" : "";
+            const nameSuffix = opt.displayName ? ` (${opt.displayName})` : "";
+            return (
+              <Box key={opt.value}>
+                <Text color={i === selectedIndex ? "cyan" : undefined}>
+                  {prefix}
+                  {checkbox} {opt.label}
+                  {teamTag}
+                </Text>
+                {nameSuffix && <Text dimColor>{nameSuffix}</Text>}
+              </Box>
+            );
+          })}
+          <Text
+            color={
+              selectedIndex === filteredReviewerOptions.length
+                ? "cyan"
+                : undefined
+            }
+          >
+            {selectedIndex === filteredReviewerOptions.length ? "❯ " : "  "}
+            Done ({selectedReviewersRef.current.size} selected)
+          </Text>
           <Box marginTop={1}>
             <Text dimColor>
-              type to filter ↑↓/jk navigate enter select esc back
+              space/enter toggle ↑↓/jk navigate tab confirm esc back
             </Text>
           </Box>
         </Box>
@@ -743,7 +813,9 @@ export function InitWizard({ cwd, deps, onDone }: InitWizardProps) {
       {phase === "enter-reviewer" && (
         <Box flexDirection="column">
           <Box marginBottom={1}>
-            <Text bold>? Who should review PRs? (leave blank for none)</Text>
+            <Text bold>
+              ? Who should review PRs? (comma-separated, blank for none)
+            </Text>
           </Box>
           <Box>
             <Text>

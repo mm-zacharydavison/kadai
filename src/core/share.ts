@@ -39,7 +39,7 @@ export async function shareToSource(opts: ShareOptions): Promise<ShareResult> {
         actions,
         sourceRepoPath,
         targetPath,
-        share?.reviewer,
+        share?.reviewers,
       );
     }
     return { status: "error", error: `Unknown strategy: ${strategy}` };
@@ -144,7 +144,7 @@ async function prStrategy(
   actions: Action[],
   sourceRepoPath: string,
   targetPath: string,
-  reviewer?: string,
+  reviewers?: string[],
 ): Promise<ShareResult> {
   const timestamp = Date.now();
   const branchName = `xcli/add-actions-${timestamp}`;
@@ -180,8 +180,8 @@ async function prStrategy(
     "--body",
     `Shared via xcli\n\nActions: ${actions.map((a) => a.meta.name).join(", ")}`,
   ];
-  if (reviewer) {
-    prArgs.push("--reviewer", reviewer);
+  if (reviewers && reviewers.length > 0) {
+    prArgs.push("--reviewer", reviewers.join(","));
   }
 
   const prResult =

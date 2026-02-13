@@ -146,8 +146,8 @@ export interface GenerationResult {
 export interface ShareConfig {
   /** How changes are pushed to the target repo */
   strategy: "push" | "branch" | "pr";
-  /** GitHub username for PR reviewer, only used when strategy = "pr" */
-  reviewer?: string;
+  /** GitHub usernames or org/team-slug for PR reviewers, only used when strategy = "pr" */
+  reviewers?: string[];
 }
 
 export interface XcliConfig {

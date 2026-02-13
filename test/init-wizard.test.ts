@@ -11,7 +11,10 @@ import {
   fetchGitHubUsername,
   fetchOrgMembers,
   fetchOrgs,
+  fetchOrgTeams,
   fetchRepoCollaborators,
+  fetchReviewerOptions,
+  fetchUserDisplayName,
   generateConfigFile,
   type InitDeps,
   type InitResult,
@@ -25,6 +28,7 @@ function makeDeps(overrides: Partial<InitDeps> = {}): InitDeps {
     ghApi: async () => ({ exitCode: 1, stdout: "", stderr: "not found" }),
     ghRepoCreate: async () => ({ exitCode: 1, stdout: "", stderr: "" }),
     bunWhich: () => null,
+    detectRepo: async () => null,
     ...overrides,
   };
 }
@@ -238,14 +242,24 @@ describe("generateConfigFile", () => {
     expect(config).toContain('share: { strategy: "branch" }');
   });
 
-  test("includes share config with PR strategy and reviewer", () => {
+  test("includes share config with PR strategy and reviewers", () => {
     const config = generateConfigFile({
       sources: [{ repo: "org/repo" }],
       aiEnabled: true,
-      share: { strategy: "pr", reviewer: "alice" },
+      share: { strategy: "pr", reviewers: ["alice"] },
     });
     expect(config).toContain('strategy: "pr"');
-    expect(config).toContain('reviewer: "alice"');
+    expect(config).toContain('reviewers: ["alice"]');
+  });
+
+  test("includes share config with multiple reviewers", () => {
+    const config = generateConfigFile({
+      sources: [{ repo: "org/repo" }],
+      aiEnabled: true,
+      share: { strategy: "pr", reviewers: ["alice", "org/backend-team"] },
+    });
+    expect(config).toContain('strategy: "pr"');
+    expect(config).toContain('reviewers: ["alice", "org/backend-team"]');
   });
 
   test("omits share config for push strategy (default)", () => {
@@ -346,14 +360,14 @@ describe("writeInitFiles", () => {
       await writeInitFiles(tmpDir, {
         sources: [{ repo: "org/repo" }],
         aiEnabled: true,
-        share: { strategy: "pr", reviewer: "bob" },
+        share: { strategy: "pr", reviewers: ["bob"] },
         org: "org",
       });
       const configContent = await Bun.file(
         join(tmpDir, ".xcli", "config.ts"),
       ).text();
       expect(configContent).toContain('strategy: "pr"');
-      expect(configContent).toContain('reviewer: "bob"');
+      expect(configContent).toContain('reviewers: ["bob"]');
       expect(configContent).toContain('org: "org"');
       expect(configContent).not.toContain("userName");
     } finally {
@@ -580,12 +594,12 @@ describe("InitWizard", () => {
     const result = getResult();
     expect(result).not.toBeNull();
 
-    // Check config was written with PR strategy and reviewer
+    // Check config was written with PR strategy and reviewers
     const configContent = await Bun.file(
       join(tmpDir, ".xcli", "config.ts"),
     ).text();
     expect(configContent).toContain('strategy: "pr"');
-    expect(configContent).toContain('reviewer: "alice"');
+    expect(configContent).toContain('reviewers: ["alice"]');
 
     rmSync(tmpDir, { recursive: true, force: true });
   });
@@ -1130,7 +1144,7 @@ describe("InitWizard", () => {
       join(tmpDir, ".xcli", "config.ts"),
     ).text();
     expect(configContent).toContain('strategy: "pr"');
-    expect(configContent).not.toContain("reviewer:");
+    expect(configContent).not.toContain("reviewers:");
 
     rmSync(tmpDir, { recursive: true, force: true });
   });
@@ -1276,13 +1290,13 @@ describe("InitWizard", () => {
     stdin.write("\r");
     await tick(200);
 
-    // Should show searchable reviewer list
+    // Should show multi-select reviewer list with checkboxes
     let output = getOutput();
     expect(output).toContain("Who should review PRs?");
-    expect(output).toContain("No reviewer (skip)");
-    expect(output).toContain("alice");
-    expect(output).toContain("bob");
-    expect(output).toContain("charlie");
+    expect(output).toContain("[ ] alice");
+    expect(output).toContain("[ ] bob");
+    expect(output).toContain("[ ] charlie");
+    expect(output).toContain("Done (0 selected)");
 
     // Type to filter — "bo" should narrow to bob
     stdin.write("b");
@@ -1294,10 +1308,16 @@ describe("InitWizard", () => {
     expect(output).toContain("bob");
     expect(output).not.toContain("charlie");
 
-    // Select bob (navigate down past "No reviewer" to bob)
-    stdin.write("\x1b[B");
-    await tick();
+    // Toggle bob (enter on first item)
     stdin.write("\r");
+    await tick();
+
+    output = getOutput();
+    expect(output).toContain("[x] bob");
+    expect(output).toContain("Done (1 selected)");
+
+    // Confirm with tab
+    stdin.write("\t");
     await tick();
 
     // Should move to AI step
@@ -1314,7 +1334,7 @@ describe("InitWizard", () => {
       join(tmpDir, ".xcli", "config.ts"),
     ).text();
     expect(configContent).toContain('strategy: "pr"');
-    expect(configContent).toContain('reviewer: "bob"');
+    expect(configContent).toContain('reviewers: ["bob"]');
 
     rmSync(tmpDir, { recursive: true, force: true });
   });
@@ -1381,7 +1401,7 @@ describe("InitWizard", () => {
     rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  test("PR strategy: skip reviewer in searchable list", async () => {
+  test("PR strategy: skip reviewers by confirming with none selected", async () => {
     const deps = makeDeps({
       ghApi: async (endpoint: string) => {
         if (endpoint === "repos/org/repo") {
@@ -1434,11 +1454,13 @@ describe("InitWizard", () => {
     stdin.write("\r");
     await tick(200);
 
-    // "No reviewer (skip)" should be first and selected
+    // Should show Done row with 0 selected
     let output = getOutput();
-    expect(output).toContain("No reviewer (skip)");
+    expect(output).toContain("Done (0 selected)");
 
-    // Press enter to select "No reviewer (skip)"
+    // Navigate down to "Done" row and press enter to confirm with none
+    stdin.write("\x1b[B"); // past alice to Done
+    await tick();
     stdin.write("\r");
     await tick();
 
@@ -1456,7 +1478,7 @@ describe("InitWizard", () => {
       join(tmpDir, ".xcli", "config.ts"),
     ).text();
     expect(configContent).toContain('strategy: "pr"');
-    expect(configContent).not.toContain("reviewer:");
+    expect(configContent).not.toContain("reviewers:");
 
     rmSync(tmpDir, { recursive: true, force: true });
   });
@@ -1521,6 +1543,80 @@ describe("InitWizard", () => {
     const output = getOutput();
     expect(output).toContain("dave");
     expect(output).toContain("eve");
+
+    unmount();
+    rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  test("local-only PR: detects git remote and shows reviewer list", async () => {
+    const deps = makeDeps({
+      ghApi: async (endpoint: string) => {
+        if (endpoint === "repos/myorg/myproject/collaborators") {
+          return {
+            exitCode: 0,
+            stdout: JSON.stringify([{ login: "alice" }, { login: "bob" }]),
+            stderr: "",
+          };
+        }
+        return { exitCode: 1, stdout: "", stderr: "" };
+      },
+      detectRepo: async () => ({ org: "myorg", repo: "myproject" }),
+      bunWhich: () => null,
+    });
+
+    const { stdin, getOutput, unmount, tmpDir } = renderWizard({ deps });
+
+    await tick();
+
+    // Local only
+    stdin.write("\r");
+    await tick();
+
+    // Push strategy → PR
+    stdin.write("\x1b[B");
+    await tick();
+    stdin.write("\x1b[B");
+    await tick();
+    stdin.write("\r");
+    await tick(200);
+
+    // Should show multi-select reviewer list from detected git remote
+    const output = getOutput();
+    expect(output).toContain("Who should review PRs?");
+    expect(output).toContain("[ ] alice");
+    expect(output).toContain("[ ] bob");
+    expect(output).toContain("Done (0 selected)");
+
+    unmount();
+    rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  test("local-only PR: falls back to text input when no git remote detected", async () => {
+    const deps = makeDeps({
+      detectRepo: async () => null,
+      bunWhich: () => null,
+    });
+
+    const { stdin, getOutput, unmount, tmpDir } = renderWizard({ deps });
+
+    await tick();
+
+    // Local only
+    stdin.write("\r");
+    await tick();
+
+    // Push strategy → PR
+    stdin.write("\x1b[B");
+    await tick();
+    stdin.write("\x1b[B");
+    await tick();
+    stdin.write("\r");
+    await tick(200);
+
+    // Should fall back to text input
+    const output = getOutput();
+    expect(output).toContain("Who should review PRs?");
+    expect(output).toContain(">");
 
     unmount();
     rmSync(tmpDir, { recursive: true, force: true });
@@ -1604,5 +1700,511 @@ describe("fetchOrgMembers", () => {
 
     const members = await fetchOrgMembers("myorg", deps);
     expect(members).toEqual([]);
+  });
+});
+
+// ─── fetchOrgTeams ──────────────────────────────────────────────
+
+describe("fetchOrgTeams", () => {
+  test("returns team list", async () => {
+    const deps = makeDeps({
+      ghApi: async (endpoint: string) => {
+        if (endpoint === "orgs/myorg/teams") {
+          return {
+            exitCode: 0,
+            stdout: JSON.stringify([
+              { slug: "backend", name: "Backend" },
+              { slug: "frontend", name: "Frontend" },
+            ]),
+            stderr: "",
+          };
+        }
+        return { exitCode: 1, stdout: "", stderr: "" };
+      },
+    });
+
+    const teams = await fetchOrgTeams("myorg", deps);
+    expect(teams).toEqual([
+      { slug: "backend", name: "Backend" },
+      { slug: "frontend", name: "Frontend" },
+    ]);
+  });
+
+  test("returns empty on failure", async () => {
+    const deps = makeDeps({
+      ghApi: async () => ({ exitCode: 1, stdout: "", stderr: "" }),
+    });
+
+    const teams = await fetchOrgTeams("myorg", deps);
+    expect(teams).toEqual([]);
+  });
+
+  test("returns empty on invalid JSON", async () => {
+    const deps = makeDeps({
+      ghApi: async () => ({ exitCode: 0, stdout: "bad", stderr: "" }),
+    });
+
+    const teams = await fetchOrgTeams("myorg", deps);
+    expect(teams).toEqual([]);
+  });
+});
+
+// ─── fetchUserDisplayName ────────────────────────────────────────
+
+describe("fetchUserDisplayName", () => {
+  test("returns name when user exists", async () => {
+    const deps = makeDeps({
+      ghApi: async (endpoint: string) => {
+        if (endpoint === "users/alice") {
+          return {
+            exitCode: 0,
+            stdout: JSON.stringify({ login: "alice", name: "Alice Smith" }),
+            stderr: "",
+          };
+        }
+        return { exitCode: 1, stdout: "", stderr: "" };
+      },
+    });
+
+    const name = await fetchUserDisplayName("alice", deps);
+    expect(name).toBe("Alice Smith");
+  });
+
+  test("returns null when user has no name", async () => {
+    const deps = makeDeps({
+      ghApi: async (endpoint: string) => {
+        if (endpoint === "users/bob") {
+          return {
+            exitCode: 0,
+            stdout: JSON.stringify({ login: "bob" }),
+            stderr: "",
+          };
+        }
+        return { exitCode: 1, stdout: "", stderr: "" };
+      },
+    });
+
+    const name = await fetchUserDisplayName("bob", deps);
+    expect(name).toBeNull();
+  });
+
+  test("returns null on API failure", async () => {
+    const deps = makeDeps({
+      ghApi: async () => ({ exitCode: 1, stdout: "", stderr: "" }),
+    });
+
+    const name = await fetchUserDisplayName("nobody", deps);
+    expect(name).toBeNull();
+  });
+});
+
+// ─── fetchReviewerOptions ───────────────────────────────────────
+
+describe("fetchReviewerOptions", () => {
+  test("returns combined users with display names and teams", async () => {
+    const deps = makeDeps({
+      ghApi: async (endpoint: string) => {
+        if (endpoint === "repos/org/repo/collaborators") {
+          return {
+            exitCode: 0,
+            stdout: JSON.stringify([{ login: "alice" }, { login: "bob" }]),
+            stderr: "",
+          };
+        }
+        if (endpoint === "user") {
+          return {
+            exitCode: 0,
+            stdout: JSON.stringify({ login: "alice" }),
+            stderr: "",
+          };
+        }
+        if (endpoint === "users/alice") {
+          return {
+            exitCode: 0,
+            stdout: JSON.stringify({ login: "alice", name: "Alice Smith" }),
+            stderr: "",
+          };
+        }
+        if (endpoint === "users/bob") {
+          return {
+            exitCode: 0,
+            stdout: JSON.stringify({ login: "bob", name: "Bob Jones" }),
+            stderr: "",
+          };
+        }
+        if (endpoint === "orgs/org/teams") {
+          return {
+            exitCode: 0,
+            stdout: JSON.stringify([{ slug: "backend", name: "Backend" }]),
+            stderr: "",
+          };
+        }
+        return { exitCode: 1, stdout: "", stderr: "" };
+      },
+    });
+
+    const options = await fetchReviewerOptions("org/repo", deps);
+    expect(options).toEqual([
+      {
+        value: "alice",
+        label: "alice",
+        type: "user",
+        displayName: "Alice Smith",
+      },
+      { value: "bob", label: "bob", type: "user", displayName: "Bob Jones" },
+      { value: "org/backend", label: "Backend", type: "team" },
+    ]);
+  });
+
+  test("adds current user when not in collaborators list", async () => {
+    const deps = makeDeps({
+      ghApi: async (endpoint: string) => {
+        if (endpoint === "repos/org/repo/collaborators") {
+          return {
+            exitCode: 0,
+            stdout: JSON.stringify([{ login: "alice" }]),
+            stderr: "",
+          };
+        }
+        if (endpoint === "user") {
+          return {
+            exitCode: 0,
+            stdout: JSON.stringify({ login: "zach" }),
+            stderr: "",
+          };
+        }
+        if (endpoint === "users/alice") {
+          return {
+            exitCode: 0,
+            stdout: JSON.stringify({ login: "alice", name: "Alice" }),
+            stderr: "",
+          };
+        }
+        if (endpoint === "users/zach") {
+          return {
+            exitCode: 0,
+            stdout: JSON.stringify({ login: "zach", name: "Zach" }),
+            stderr: "",
+          };
+        }
+        if (endpoint === "orgs/org/teams") {
+          return { exitCode: 0, stdout: "[]", stderr: "" };
+        }
+        return { exitCode: 1, stdout: "", stderr: "" };
+      },
+    });
+
+    const options = await fetchReviewerOptions("org/repo", deps);
+    expect(options).toEqual([
+      { value: "alice", label: "alice", type: "user", displayName: "Alice" },
+      { value: "zach", label: "zach", type: "user", displayName: "Zach" },
+    ]);
+  });
+
+  test("falls back to org members when collaborators fail", async () => {
+    const deps = makeDeps({
+      ghApi: async (endpoint: string) => {
+        if (endpoint === "repos/org/repo/collaborators") {
+          return { exitCode: 1, stdout: "", stderr: "" };
+        }
+        if (endpoint === "orgs/org/members") {
+          return {
+            exitCode: 0,
+            stdout: JSON.stringify([{ login: "carol" }]),
+            stderr: "",
+          };
+        }
+        if (endpoint === "orgs/org/teams") {
+          return { exitCode: 0, stdout: "[]", stderr: "" };
+        }
+        return { exitCode: 1, stdout: "", stderr: "" };
+      },
+    });
+
+    const options = await fetchReviewerOptions("org/repo", deps);
+    expect(options).toEqual([
+      { value: "carol", label: "carol", type: "user", displayName: undefined },
+    ]);
+  });
+
+  test("returns empty when nothing found", async () => {
+    const deps = makeDeps({
+      ghApi: async () => ({ exitCode: 1, stdout: "", stderr: "" }),
+    });
+
+    const options = await fetchReviewerOptions("org/repo", deps);
+    expect(options).toEqual([]);
+  });
+});
+
+// ─── InitWizard multi-select integration ────────────────────────
+
+describe("InitWizard multi-select reviewers", () => {
+  test("toggle two users + a team, confirm, verify config", async () => {
+    const deps = makeDeps({
+      ghApi: async (endpoint: string) => {
+        if (endpoint === "repos/org/repo") {
+          return {
+            exitCode: 0,
+            stdout: JSON.stringify({
+              full_name: "org/repo",
+              default_branch: "main",
+            }),
+            stderr: "",
+          };
+        }
+        if (endpoint === "repos/org/repo/collaborators") {
+          return {
+            exitCode: 0,
+            stdout: JSON.stringify([{ login: "alice" }, { login: "bob" }]),
+            stderr: "",
+          };
+        }
+        if (endpoint === "orgs/org/teams") {
+          return {
+            exitCode: 0,
+            stdout: JSON.stringify([{ slug: "backend", name: "Backend" }]),
+            stderr: "",
+          };
+        }
+        return { exitCode: 1, stdout: "", stderr: "" };
+      },
+      bunWhich: () => null,
+    });
+
+    const { stdin, getOutput, tmpDir } = renderWizard({ deps });
+
+    await tick();
+
+    // Navigate: Shared → Existing → enter repo → PR strategy
+    stdin.write("\x1b[B");
+    await tick();
+    stdin.write("\r");
+    await tick();
+    stdin.write("\x1b[B");
+    await tick();
+    stdin.write("\r");
+    await tick();
+    for (const ch of "org/repo") {
+      stdin.write(ch);
+    }
+    await tick();
+    stdin.write("\r");
+    await tick(100);
+
+    // Push strategy → PR
+    stdin.write("\x1b[B");
+    await tick();
+    stdin.write("\x1b[B");
+    await tick();
+    stdin.write("\r");
+    await tick(200);
+
+    // Should show multi-select with users and team
+    let output = getOutput();
+    expect(output).toContain("[ ] alice");
+    expect(output).toContain("[ ] bob");
+    expect(output).toContain("[ ] Backend (team)");
+
+    // Toggle alice (first item, already selected by cursor)
+    stdin.write(" ");
+    await tick();
+
+    output = getOutput();
+    expect(output).toContain("[x] alice");
+    expect(output).toContain("Done (1 selected)");
+
+    // Navigate down to bob and toggle
+    stdin.write("\x1b[B");
+    await tick();
+    stdin.write(" ");
+    await tick();
+
+    output = getOutput();
+    expect(output).toContain("[x] bob");
+    expect(output).toContain("Done (2 selected)");
+
+    // Navigate down to Backend team and toggle
+    stdin.write("\x1b[B");
+    await tick();
+    stdin.write(" ");
+    await tick();
+
+    output = getOutput();
+    expect(output).toContain("[x] Backend (team)");
+    expect(output).toContain("Done (3 selected)");
+
+    // Confirm with tab
+    stdin.write("\t");
+    await tick();
+
+    // Should move to AI step
+    output = getOutput();
+    expect(output).toContain("Enable AI action generation?");
+
+    // AI → No → done
+    stdin.write("\x1b[B");
+    await tick();
+    stdin.write("\r");
+    await tick(100);
+
+    const configContent = await Bun.file(
+      join(tmpDir, ".xcli", "config.ts"),
+    ).text();
+    expect(configContent).toContain('strategy: "pr"');
+    expect(configContent).toContain("reviewers:");
+    expect(configContent).toContain('"alice"');
+    expect(configContent).toContain('"bob"');
+    expect(configContent).toContain('"org/backend"');
+
+    rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  test("teams show (team) suffix in output", async () => {
+    const deps = makeDeps({
+      ghApi: async (endpoint: string) => {
+        if (endpoint === "repos/org/repo") {
+          return {
+            exitCode: 0,
+            stdout: JSON.stringify({
+              full_name: "org/repo",
+              default_branch: "main",
+            }),
+            stderr: "",
+          };
+        }
+        if (endpoint === "repos/org/repo/collaborators") {
+          return {
+            exitCode: 0,
+            stdout: JSON.stringify([{ login: "alice" }]),
+            stderr: "",
+          };
+        }
+        if (endpoint === "orgs/org/teams") {
+          return {
+            exitCode: 0,
+            stdout: JSON.stringify([{ slug: "devops", name: "DevOps" }]),
+            stderr: "",
+          };
+        }
+        return { exitCode: 1, stdout: "", stderr: "" };
+      },
+      bunWhich: () => null,
+    });
+
+    const { stdin, getOutput, unmount, tmpDir } = renderWizard({ deps });
+
+    await tick();
+
+    // Navigate: Shared → Existing → enter repo → PR strategy
+    stdin.write("\x1b[B");
+    await tick();
+    stdin.write("\r");
+    await tick();
+    stdin.write("\x1b[B");
+    await tick();
+    stdin.write("\r");
+    await tick();
+    for (const ch of "org/repo") {
+      stdin.write(ch);
+    }
+    await tick();
+    stdin.write("\r");
+    await tick(100);
+
+    // Push strategy → PR
+    stdin.write("\x1b[B");
+    await tick();
+    stdin.write("\x1b[B");
+    await tick();
+    stdin.write("\r");
+    await tick(200);
+
+    const output = getOutput();
+    // Users should NOT have (team) suffix
+    expect(output).toContain("[ ] alice");
+    expect(output).not.toContain("alice (team)");
+    // Teams should have (team) suffix
+    expect(output).toContain("[ ] DevOps (team)");
+
+    unmount();
+    rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  test("comma-separated text input fallback produces reviewers array", async () => {
+    const deps = makeDeps({
+      ghApi: async (endpoint: string) => {
+        if (endpoint === "repos/org/repo") {
+          return {
+            exitCode: 0,
+            stdout: JSON.stringify({
+              full_name: "org/repo",
+              default_branch: "main",
+            }),
+            stderr: "",
+          };
+        }
+        return { exitCode: 1, stdout: "", stderr: "" };
+      },
+      bunWhich: () => null,
+    });
+
+    const { stdin, getOutput, tmpDir } = renderWizard({ deps });
+
+    await tick();
+
+    // Navigate: Shared → Existing → enter repo → PR strategy
+    stdin.write("\x1b[B");
+    await tick();
+    stdin.write("\r");
+    await tick();
+    stdin.write("\x1b[B");
+    await tick();
+    stdin.write("\r");
+    await tick();
+    for (const ch of "org/repo") {
+      stdin.write(ch);
+    }
+    await tick();
+    stdin.write("\r");
+    await tick(100);
+
+    // Push strategy → PR
+    stdin.write("\x1b[B");
+    await tick();
+    stdin.write("\x1b[B");
+    await tick();
+    stdin.write("\r");
+    await tick(200);
+
+    // Should fall back to text input (no collaborators/members found)
+    let output = getOutput();
+    expect(output).toContain("comma-separated");
+
+    // Type comma-separated reviewers
+    for (const ch of "alice, bob") {
+      stdin.write(ch);
+    }
+    await tick();
+    stdin.write("\r");
+    await tick();
+
+    // Should move to AI step
+    output = getOutput();
+    expect(output).toContain("Enable AI action generation?");
+
+    // AI → No → done
+    stdin.write("\x1b[B");
+    await tick();
+    stdin.write("\r");
+    await tick(100);
+
+    const configContent = await Bun.file(
+      join(tmpDir, ".xcli", "config.ts"),
+    ).text();
+    expect(configContent).toContain('strategy: "pr"');
+    expect(configContent).toContain('reviewers: ["alice", "bob"]');
+
+    rmSync(tmpDir, { recursive: true, force: true });
   });
 });

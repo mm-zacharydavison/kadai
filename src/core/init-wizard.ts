@@ -1,6 +1,7 @@
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import type { ShareConfig, SourceConfig } from "../types.ts";
+import { detectRepoIdentity, type RepoIdentity } from "./git-utils.ts";
 
 // ─── Dependency injection for testability ─────────────────────────
 
@@ -17,6 +18,7 @@ export interface InitDeps {
   ) => Promise<CmdResult>;
   ghRepoCreate: (repoName: string) => Promise<CmdResult>;
   bunWhich: (name: string) => string | null;
+  detectRepo: (cwd: string) => Promise<RepoIdentity | null>;
 }
 
 export function defaultDeps(): InitDeps {
@@ -67,6 +69,9 @@ export function defaultDeps(): InitDeps {
     },
     bunWhich(name: string): string | null {
       return Bun.which(name);
+    },
+    detectRepo(cwd: string): Promise<RepoIdentity | null> {
+      return detectRepoIdentity(cwd);
     },
   };
 }
@@ -131,6 +136,18 @@ export interface MemberInfo {
   login: string;
 }
 
+export interface TeamInfo {
+  slug: string;
+  name: string;
+}
+
+export interface ReviewerOption {
+  value: string;
+  label: string;
+  type: "user" | "team";
+  displayName?: string;
+}
+
 export interface OrgInfo {
   login: string;
 }
@@ -192,6 +209,91 @@ export async function fetchOrgMembers(
   }
 }
 
+export async function fetchOrgTeams(
+  org: string,
+  deps: InitDeps = defaultDeps(),
+): Promise<TeamInfo[]> {
+  try {
+    const result = await deps.ghApi(`orgs/${org}/teams`);
+    if (result.exitCode !== 0) return [];
+    const data = JSON.parse(result.stdout);
+    if (!Array.isArray(data)) return [];
+    return data.map((t: { slug: string; name: string }) => ({
+      slug: t.slug,
+      name: t.name,
+    }));
+  } catch {
+    return [];
+  }
+}
+
+export async function fetchUserDisplayName(
+  login: string,
+  deps: InitDeps = defaultDeps(),
+): Promise<string | null> {
+  try {
+    const result = await deps.ghApi(`users/${login}`);
+    if (result.exitCode !== 0) return null;
+    const data = JSON.parse(result.stdout);
+    return data.name ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export async function fetchReviewerOptions(
+  repo: string,
+  deps: InitDeps = defaultDeps(),
+): Promise<ReviewerOption[]> {
+  const [repoOrg] = repo.split("/");
+  const logins: string[] = [];
+
+  // Fetch users: collaborators first, fall back to org members
+  const collaborators = await fetchRepoCollaborators(repo, deps);
+  if (collaborators.length > 0) {
+    for (const c of collaborators) {
+      logins.push(c.login);
+    }
+  } else if (repoOrg) {
+    const orgMembers = await fetchOrgMembers(repoOrg, deps);
+    for (const m of orgMembers) {
+      logins.push(m.login);
+    }
+  }
+
+  // Ensure the current authenticated user is in the list
+  const currentUser = await fetchGitHubUsername(deps);
+  if (currentUser && !logins.includes(currentUser)) {
+    logins.push(currentUser);
+  }
+
+  // Fetch display names for all users in parallel
+  const displayNames = await Promise.all(
+    logins.map((login) => fetchUserDisplayName(login, deps)),
+  );
+
+  const options: ReviewerOption[] = logins.map((login, i) => ({
+    value: login,
+    label: login,
+    type: "user" as const,
+    displayName: displayNames[i] ?? undefined,
+  }));
+
+  // Fetch teams
+  if (repoOrg) {
+    const teams = await fetchOrgTeams(repoOrg, deps);
+    for (const t of teams) {
+      options.push({
+        value: `${repoOrg}/${t.slug}`,
+        label: `${t.name}`,
+        type: "team",
+      });
+    }
+  }
+
+  return options;
+}
+
 export async function setupBranchProtection(
   owner: string,
   repo: string,
@@ -249,8 +351,9 @@ export function generateConfigFile(options: GenerateConfigOptions): string {
   // Share config
   if (share && share.strategy !== "push") {
     const shareParts: string[] = [`strategy: "${share.strategy}"`];
-    if (share.reviewer) {
-      shareParts.push(`reviewer: "${share.reviewer}"`);
+    if (share.reviewers && share.reviewers.length > 0) {
+      const items = share.reviewers.map((r) => `"${r}"`).join(", ");
+      shareParts.push(`reviewers: [${items}]`);
     }
     activeLines.push(`  share: { ${shareParts.join(", ")} },`);
   }

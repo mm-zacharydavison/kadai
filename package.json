@@ -3,14 +3,15 @@
   "version": "0.1.0",
   "type": "module",
   "bin": {
-    "xcli": "./src/cli.tsx"
+    "xcli": "./dist/cli.js"
   },
   "scripts": {
+    "build": "bun build.ts",
     "check": "tsc --noEmit && biome check ./src ./test",
     "lint": "biome check ./src ./test",
     "lint:fix": "biome check --write ./src ./test"
   },
-  "files": ["src/"],
+  "files": ["dist/"],
   "devDependencies": {
     "@biomejs/biome": "^2.3.14",
     "@types/bun": "latest",
