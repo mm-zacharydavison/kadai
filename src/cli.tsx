@@ -6,7 +6,7 @@ import React from "react";
 import { generate } from "./ai/generate.ts";
 import { getDefaultProvider } from "./ai/provider.ts";
 import { App } from "./app.tsx";
-import { InitWizard } from "./components/InitWizard.tsx";
+import { InitWizard } from "./components/init-wizard/InitWizard.tsx";
 import { loadConfig } from "./core/config.ts";
 import { defaultDeps, type InitResult } from "./core/init-wizard.ts";
 import { findXcliDir } from "./core/loader.ts";

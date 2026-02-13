@@ -33,7 +33,8 @@ describe("script execution", () => {
     cli.type("Reset");
     cli.press(Keys.ENTER);
     // Accept confirmation prompt
-    cli.press(Keys.ENTER);
+    await cli.waitForText("Y/n");
+    cli.type("y");
     await cli.waitForText("Database reset complete.");
   });
 
@@ -88,7 +89,7 @@ describe("script execution", () => {
     cli.type("Reset");
     cli.press(Keys.ENTER);
     // Should show confirmation prompt before running
-    await cli.waitForText("confirm");
+    await cli.waitForText("Y/n");
   });
 
   test("cancelling confirmation does not run the action", async () => {
@@ -101,9 +102,9 @@ describe("script execution", () => {
     cli.type("/");
     cli.type("Reset");
     cli.press(Keys.ENTER);
-    await cli.waitForText("confirm");
-    // Press Escape to cancel
-    cli.press(Keys.ESCAPE);
+    await cli.waitForText("Y/n");
+    // Press n to cancel
+    cli.type("n");
     // Should return to menu without running the script
     const output = cli.getStrippedOutput();
     expect(output).not.toContain("Dropping database...");

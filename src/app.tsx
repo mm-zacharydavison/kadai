@@ -1,9 +1,10 @@
+import { ConfirmInput } from "@inkjs/ui";
 import { Box, Text, useApp } from "ink";
 import { useState } from "react";
 import { ActionOutput } from "./components/ActionOutput.tsx";
 import { Breadcrumbs } from "./components/Breadcrumbs.tsx";
-import { ShareScreen } from "./components/ShareScreen.tsx";
 import { StatusBar } from "./components/StatusBar.tsx";
+import { ShareScreen } from "./components/share-screen/ShareScreen.tsx";
 import { useActions } from "./hooks/useActions.ts";
 import { useKeyboard } from "./hooks/useKeyboard.ts";
 import { useNavigation } from "./hooks/useNavigation.ts";
@@ -95,7 +96,6 @@ export function App({
     setSearchActive: search.setSearchActive,
     setSearchQuery: search.setSearchQuery,
     setSelectedIndex: search.setSelectedIndex,
-    setStack: nav.setStack,
     resetSearch: search.resetSearch,
     pushScreen: nav.pushScreen,
     popScreen: nav.popScreen,
@@ -105,7 +105,10 @@ export function App({
     onRequestHandover,
     aiEnabled,
     hasSources,
-    isActive: !showShareScreen && nav.currentScreen.type !== "share",
+    isActive:
+      !showShareScreen &&
+      nav.currentScreen.type !== "share" &&
+      nav.currentScreen.type !== "confirm",
   });
 
   if (loading) {
@@ -196,12 +199,26 @@ export function App({
     const { actionId } = nav.currentScreen;
     const action = actions.find((a) => a.id === actionId);
     if (!action) return <Text color="red">Action not found</Text>;
+
+    const handleConfirm = () => {
+      nav.setStack((s) => {
+        const next = [...s.slice(0, -1), { type: "output" as const, actionId }];
+        nav.stackRef.current = next;
+        return next;
+      });
+    };
+
     return (
       <Box flexDirection="column">
-        <Text>
-          Are you sure you want to run <Text bold>{action.meta.name}</Text>?
-          Press enter to confirm, esc to cancel.
-        </Text>
+        <Box>
+          <Text>
+            Run <Text bold>{action.meta.name}</Text>?{" "}
+          </Text>
+          <ConfirmInput
+            onConfirm={handleConfirm}
+            onCancel={() => nav.popScreen()}
+          />
+        </Box>
       </Box>
     );
   }

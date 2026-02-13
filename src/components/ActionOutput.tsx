@@ -1,6 +1,5 @@
 import { Box, Text } from "ink";
-import { useEffect, useState } from "react";
-import { runAction } from "../core/runner.ts";
+import { useActionRunner } from "../hooks/useActionRunner.ts";
 import type { Action, XcliConfig } from "../types.ts";
 
 interface ActionOutputProps {
@@ -11,47 +10,11 @@ interface ActionOutputProps {
 }
 
 export function ActionOutput({ action, cwd, config }: ActionOutputProps) {
-  const [lines, setLines] = useState<string[]>([]);
-  const [exitCode, setExitCode] = useState<number | null>(null);
-  const [running, setRunning] = useState(true);
-
-  useEffect(() => {
-    const handle = runAction(action, { cwd, config });
-
-    const readStream = async (stream: ReadableStream<Uint8Array>) => {
-      const reader = stream.getReader();
-      const decoder = new TextDecoder();
-      try {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          const text = decoder.decode(value);
-          const newLines = text.split("\n").filter((l) => l.length > 0);
-          if (newLines.length > 0) {
-            setLines((prev) => [...prev, ...newLines]);
-          }
-        }
-      } catch {
-        // Stream closed
-      }
-    };
-
-    readStream(handle.stdout);
-    readStream(handle.stderr);
-
-    handle.proc.exited.then((code) => {
-      setExitCode(code);
-      setRunning(false);
-    });
-
-    return () => {
-      try {
-        handle.proc.kill();
-      } catch {
-        // Already dead
-      }
-    };
-  }, [action.id, config, action, cwd]);
+  const { lines, exitCode, running } = useActionRunner({
+    action,
+    cwd,
+    config,
+  });
 
   return (
     <Box flexDirection="column">

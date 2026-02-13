@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { render } from "ink-testing-library";
 import React from "react";
-import { InitWizard } from "../src/components/InitWizard.tsx";
+import { InitWizard } from "../src/components/init-wizard/InitWizard.tsx";
 import {
   createXcliActionsRepo,
   detectAiCli,
@@ -1149,91 +1149,7 @@ describe("InitWizard", () => {
     rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  test("vim j/k navigation works in arrow phases", async () => {
-    const deps = makeDeps({ bunWhich: () => null });
-
-    const { stdin, getOutput, unmount, tmpDir } = renderWizard({ deps });
-
-    await tick();
-
-    // Phase 1: Use j to move down to "Shared repo"
-    stdin.write("j");
-    await tick();
-
-    let output = getOutput();
-    // "Shared repo" should be highlighted (selected)
-    expect(output).toContain("❯ Shared repo");
-
-    // Use k to move back up to "Local only"
-    stdin.write("k");
-    await tick();
-
-    output = getOutput();
-    expect(output).toContain("❯ Local only");
-
-    unmount();
-    rmSync(tmpDir, { recursive: true, force: true });
-  });
-
-  test("vim j/k navigation works in create-failed phase", async () => {
-    const deps = makeDeps({
-      ghApi: async (endpoint: string) => {
-        if (endpoint === "user/orgs") {
-          return { exitCode: 0, stdout: "[]", stderr: "" };
-        }
-        if (endpoint === "user") {
-          return {
-            exitCode: 0,
-            stdout: JSON.stringify({ login: "alice" }),
-            stderr: "",
-          };
-        }
-        return { exitCode: 1, stdout: "", stderr: "" };
-      },
-      ghRepoCreate: async () => ({
-        exitCode: 1,
-        stdout: "",
-        stderr: "HTTP 403: permission denied",
-      }),
-      bunWhich: () => null,
-    });
-
-    const { stdin, getOutput, unmount, tmpDir } = renderWizard({ deps });
-
-    await tick();
-
-    // Navigate to create-failed: Shared repo → Create new → select personal → fails
-    stdin.write("\x1b[B");
-    await tick();
-    stdin.write("\r");
-    await tick();
-    stdin.write("\r"); // Create new
-    await tick(100);
-    stdin.write("\r"); // Select Personal
-    await tick(100);
-
-    let output = getOutput();
-    expect(output).toContain("I have a different repo");
-
-    // Use j to move down
-    stdin.write("j");
-    await tick();
-
-    output = getOutput();
-    expect(output).toContain("❯ No shared repo");
-
-    // Use k to move back up
-    stdin.write("k");
-    await tick();
-
-    output = getOutput();
-    expect(output).toContain("❯ I have a different repo");
-
-    unmount();
-    rmSync(tmpDir, { recursive: true, force: true });
-  });
-
-  test("PR strategy: shows searchable reviewer list when members found", async () => {
+  test("PR strategy: shows reviewer list when members found", async () => {
     const deps = makeDeps({
       ghApi: async (endpoint: string) => {
         if (endpoint === "repos/org/repo") {
@@ -1290,34 +1206,21 @@ describe("InitWizard", () => {
     stdin.write("\r");
     await tick(200);
 
-    // Should show multi-select reviewer list with checkboxes
+    // Should show multi-select reviewer list
     let output = getOutput();
     expect(output).toContain("Who should review PRs?");
-    expect(output).toContain("[ ] alice");
-    expect(output).toContain("[ ] bob");
-    expect(output).toContain("[ ] charlie");
-    expect(output).toContain("Done (0 selected)");
-
-    // Type to filter — "bo" should narrow to bob
-    stdin.write("b");
-    await tick();
-    stdin.write("o");
-    await tick();
-
-    output = getOutput();
+    expect(output).toContain("alice");
     expect(output).toContain("bob");
-    expect(output).not.toContain("charlie");
+    expect(output).toContain("charlie");
 
-    // Toggle bob (enter on first item)
-    stdin.write("\r");
+    // Toggle bob (navigate down, space to toggle)
+    stdin.write("\x1b[B"); // down to bob
+    await tick();
+    stdin.write(" "); // toggle
     await tick();
 
-    output = getOutput();
-    expect(output).toContain("[x] bob");
-    expect(output).toContain("Done (1 selected)");
-
-    // Confirm with tab
-    stdin.write("\t");
+    // Submit with enter
+    stdin.write("\r");
     await tick();
 
     // Should move to AI step
@@ -1454,18 +1357,12 @@ describe("InitWizard", () => {
     stdin.write("\r");
     await tick(200);
 
-    // Should show Done row with 0 selected
-    let output = getOutput();
-    expect(output).toContain("Done (0 selected)");
-
-    // Navigate down to "Done" row and press enter to confirm with none
-    stdin.write("\x1b[B"); // past alice to Done
-    await tick();
+    // Submit with enter immediately (no selections)
     stdin.write("\r");
     await tick();
 
     // Should move to AI step
-    output = getOutput();
+    const output = getOutput();
     expect(output).toContain("Enable AI action generation?");
 
     // Finish: AI → No
@@ -1583,9 +1480,8 @@ describe("InitWizard", () => {
     // Should show multi-select reviewer list from detected git remote
     const output = getOutput();
     expect(output).toContain("Who should review PRs?");
-    expect(output).toContain("[ ] alice");
-    expect(output).toContain("[ ] bob");
-    expect(output).toContain("Done (0 selected)");
+    expect(output).toContain("alice");
+    expect(output).toContain("bob");
 
     unmount();
     rmSync(tmpDir, { recursive: true, force: true });
@@ -2002,17 +1898,13 @@ describe("InitWizard multi-select reviewers", () => {
 
     // Should show multi-select with users and team
     let output = getOutput();
-    expect(output).toContain("[ ] alice");
-    expect(output).toContain("[ ] bob");
-    expect(output).toContain("[ ] Backend (team)");
+    expect(output).toContain("alice");
+    expect(output).toContain("bob");
+    expect(output).toContain("Backend (team)");
 
-    // Toggle alice (first item, already selected by cursor)
+    // Toggle alice (first item, already focused)
     stdin.write(" ");
     await tick();
-
-    output = getOutput();
-    expect(output).toContain("[x] alice");
-    expect(output).toContain("Done (1 selected)");
 
     // Navigate down to bob and toggle
     stdin.write("\x1b[B");
@@ -2020,22 +1912,14 @@ describe("InitWizard multi-select reviewers", () => {
     stdin.write(" ");
     await tick();
 
-    output = getOutput();
-    expect(output).toContain("[x] bob");
-    expect(output).toContain("Done (2 selected)");
-
     // Navigate down to Backend team and toggle
     stdin.write("\x1b[B");
     await tick();
     stdin.write(" ");
     await tick();
 
-    output = getOutput();
-    expect(output).toContain("[x] Backend (team)");
-    expect(output).toContain("Done (3 selected)");
-
-    // Confirm with tab
-    stdin.write("\t");
+    // Submit with enter
+    stdin.write("\r");
     await tick();
 
     // Should move to AI step
@@ -2122,10 +2006,10 @@ describe("InitWizard multi-select reviewers", () => {
 
     const output = getOutput();
     // Users should NOT have (team) suffix
-    expect(output).toContain("[ ] alice");
+    expect(output).toContain("alice");
     expect(output).not.toContain("alice (team)");
     // Teams should have (team) suffix
-    expect(output).toContain("[ ] DevOps (team)");
+    expect(output).toContain("DevOps (team)");
 
     unmount();
     rmSync(tmpDir, { recursive: true, force: true });

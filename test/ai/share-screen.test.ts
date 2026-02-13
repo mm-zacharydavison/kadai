@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { render } from "ink-testing-library";
 import React from "react";
-import { ShareScreen } from "../../src/components/ShareScreen.tsx";
+import { ShareScreen } from "../../src/components/share-screen/ShareScreen.tsx";
 import type { Action, SourceConfig, XcliConfig } from "../../src/types.ts";
 import { stripAnsi } from "../harness.ts";
 
@@ -16,7 +16,7 @@ function makeAction(overrides: Partial<Action> = {}): Action {
   };
 }
 
-const tick = () => new Promise((r) => setTimeout(r, 10));
+const tick = (ms = 50) => new Promise((r) => setTimeout(r, ms));
 
 describe("ShareScreen", () => {
   // --- test-run prompt step ---
@@ -208,6 +208,12 @@ describe("ShareScreen", () => {
     stdin.write("s");
     await tick();
 
+    // Navigate to "Custom..." and select it
+    stdin.write("\x1b[B");
+    await tick();
+    stdin.write("\r");
+    await tick();
+
     const output = stripAnsi(lastFrame() ?? "");
     expect(output).toContain("actions/your/path");
   });
@@ -228,8 +234,10 @@ describe("ShareScreen", () => {
     stdin.write("s");
     await tick();
 
-    // Navigate to custom field (no org: actions/ at 0, custom at 1)
-    stdin.write("\x1b[B"); // arrow down to custom
+    // Navigate to "Custom..." and select it
+    stdin.write("\x1b[B");
+    await tick();
+    stdin.write("\r");
     await tick();
 
     // Type a path
@@ -259,8 +267,10 @@ describe("ShareScreen", () => {
     stdin.write("s");
     await tick();
 
-    // Navigate to custom field (no org: actions/ at 0, custom at 1)
+    // Navigate to "Custom..." and select it
     stdin.write("\x1b[B");
+    await tick();
+    stdin.write("\r");
     await tick();
 
     // Type path and submit
@@ -290,8 +300,10 @@ describe("ShareScreen", () => {
     stdin.write("s");
     await tick();
 
-    // Navigate to custom field
+    // Navigate to "Custom..." and select it
     stdin.write("\x1b[B");
+    await tick();
+    stdin.write("\r");
     await tick();
 
     stdin.write("abc");
@@ -502,6 +514,7 @@ describe("ShareScreen", () => {
     stdin.write("s"); // skip test-run
     await tick();
     stdin.write("\r"); // confirm default path
+    await tick();
 
     expect(doneResult).toEqual({
       source: undefined,
@@ -556,7 +569,8 @@ describe("ShareScreen", () => {
     await tick();
     stdin.write("s"); // skip test-run
     await tick();
-    stdin.write("j");
+    // Arrow down to select external source
+    stdin.write("\x1b[B");
     await tick();
     stdin.write("\r");
     await tick();
@@ -588,8 +602,8 @@ describe("ShareScreen", () => {
     await tick();
     stdin.write("s"); // skip test-run
     await tick();
-    // Select external source
-    stdin.write("j");
+    // Select external source (arrow down to second option)
+    stdin.write("\x1b[B");
     await tick();
     stdin.write("\r");
     await tick();
@@ -643,10 +657,10 @@ describe("ShareScreen", () => {
 
     stdin.write("s"); // skip test-run
     await tick();
-    await tick();
 
     // Select "Keep in .xcli" to go to path picker
     stdin.write("\r");
+    await tick();
     await tick();
 
     let output = stripAnsi(lastFrame() ?? "");

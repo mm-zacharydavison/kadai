@@ -1,20 +1,13 @@
 import fuzzysort from "fuzzysort";
-import { useRef, useState } from "react";
 import type { MenuItem } from "../types.ts";
+import { useRefState } from "./useRefState.ts";
 
 export function useSearch() {
-  const [searchActive, setSearchActive] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedIndex, setSelectedIndex] = useState(0);
-
-  const searchActiveRef = useRef(false);
-  const searchQueryRef = useRef("");
-  const selectedIndexRef = useRef(0);
+  const [searchActive, searchActiveRef, setSearchActive] = useRefState(false);
+  const [searchQuery, searchQueryRef, setSearchQuery] = useRefState("");
+  const [selectedIndex, selectedIndexRef, setSelectedIndex] = useRefState(0);
 
   const resetSearch = () => {
-    searchActiveRef.current = false;
-    searchQueryRef.current = "";
-    selectedIndexRef.current = 0;
     setSearchActive(false);
     setSearchQuery("");
     setSelectedIndex(0);

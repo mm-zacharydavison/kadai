@@ -27,7 +27,6 @@ interface UseKeyboardOptions {
   setSearchActive: (active: boolean) => void;
   setSearchQuery: (query: string) => void;
   setSelectedIndex: (index: number) => void;
-  setStack: React.Dispatch<React.SetStateAction<Screen[]>>;
   resetSearch: () => void;
   pushScreen: (screen: Screen) => void;
   popScreen: () => void;
@@ -49,7 +48,6 @@ export function useKeyboard({
   setSearchActive,
   setSearchQuery,
   setSelectedIndex,
-  setStack,
   resetSearch,
   pushScreen,
   popScreen,
@@ -76,23 +74,6 @@ export function useKeyboard({
 
       // Share screen: handled by ShareScreen component
       if (screen.type === "share") return;
-
-      // Confirm screen: ENTER to confirm, ESC to cancel
-      if (screen.type === "confirm") {
-        if (key.return) {
-          const actionId = screen.actionId;
-          setStack((s) => {
-            const next = [
-              ...s.slice(0, -1),
-              { type: "output" as const, actionId },
-            ];
-            stackRef.current = next;
-            return next;
-          });
-        }
-        if (key.escape) popScreen();
-        return;
-      }
 
       // From here, screen must be "menu"
       if (screen.type !== "menu") return;
