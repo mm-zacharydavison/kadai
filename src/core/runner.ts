@@ -1,10 +1,11 @@
-import type { Subprocess } from "bun";
+import type { FileSink, Subprocess } from "bun";
 import type { Action, Runtime, ZcliConfig } from "../types.ts";
 
 export interface RunHandle {
   proc: Subprocess;
   stdout: ReadableStream<Uint8Array>;
   stderr: ReadableStream<Uint8Array>;
+  stdin: FileSink;
 }
 
 export function runAction(
@@ -21,6 +22,7 @@ export function runAction(
 
   const proc = Bun.spawn(cmd, {
     cwd,
+    stdin: "pipe",
     stdout: "pipe",
     stderr: "pipe",
     env,
@@ -30,6 +32,7 @@ export function runAction(
     proc,
     stdout: proc.stdout as ReadableStream<Uint8Array>,
     stderr: proc.stderr as ReadableStream<Uint8Array>,
+    stdin: proc.stdin as FileSink,
   };
 }
 

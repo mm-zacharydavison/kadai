@@ -194,6 +194,11 @@ while (true) {
     `${action.meta.emoji ? `${action.meta.emoji} ` : ""}${action.meta.name}\n`,
   );
 
+  // Ink removes its listeners but never pauses stdin. The stream may still
+  // be polling fd 0 in the event loop, racing with the child process that
+  // inherits the same fd. Explicitly pause to give the child exclusive access.
+  process.stdin.pause();
+
   const proc = Bun.spawn(cmd, {
     cwd,
     stdout: "inherit",
@@ -203,6 +208,10 @@ while (true) {
   });
 
   const exitCode = await proc.exited;
+
+  // Resume stdin so we can listen for the "press enter" keypress
+  process.stdin.resume();
+
   const color = exitCode === 0 ? "\x1b[32m" : "\x1b[31m";
   const symbol = exitCode === 0 ? "✓" : "✗";
   console.log(`\n${color}${symbol} exit code ${exitCode}\x1b[0m`);

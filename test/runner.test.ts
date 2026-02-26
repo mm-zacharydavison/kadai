@@ -92,6 +92,18 @@ describe("script execution", () => {
     await cli.waitForText("Y/n");
   });
 
+  test("forwards stdin to running script", async () => {
+    cli = spawnCLI({ cwd: fixturePath("basic-repo") });
+    await cli.waitForText("Greeter");
+    cli.type("/");
+    cli.type("Greeter");
+    cli.press(Keys.ENTER);
+    await cli.waitForText("What is your name?");
+    cli.type("World");
+    cli.press(Keys.ENTER);
+    await cli.waitForText("Hello, World!");
+  });
+
   test("cancelling confirmation does not run the action", async () => {
     cli = spawnCLI({ cwd: fixturePath("basic-repo") });
     await cli.waitForText("database");

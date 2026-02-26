@@ -1,5 +1,6 @@
 import { ConfirmInput } from "@inkjs/ui";
 import { Box, Text, useApp } from "ink";
+import { useState } from "react";
 import { ActionOutput } from "./components/ActionOutput.tsx";
 import { Breadcrumbs } from "./components/Breadcrumbs.tsx";
 import { StatusBar } from "./components/StatusBar.tsx";
@@ -60,6 +61,7 @@ interface AppProps {
 
 export function App({ cwd, zcliDir, onRunInteractive }: AppProps) {
   const { exit } = useApp();
+  const [isProcessRunning, setIsProcessRunning] = useState(false);
 
   const handleRunInteractive = onRunInteractive
     ? (action: Action) => {
@@ -89,7 +91,7 @@ export function App({ cwd, zcliDir, onRunInteractive }: AppProps) {
     exit,
     getMenuItems: buildMenuItems,
     computeFiltered: search.computeFiltered,
-    isActive: nav.currentScreen.type !== "confirm",
+    isActive: nav.currentScreen.type !== "confirm" && !isProcessRunning,
     onRunInteractive: handleRunInteractive,
   });
 
@@ -175,7 +177,12 @@ export function App({ cwd, zcliDir, onRunInteractive }: AppProps) {
 
     return (
       <Box flexDirection="column">
-        <ActionOutput action={action} cwd={cwd} config={config} />
+        <ActionOutput
+          action={action}
+          cwd={cwd}
+          config={config}
+          onRunningChange={setIsProcessRunning}
+        />
         <Box marginTop={1}>
           <Text dimColor>Press enter or esc to go back</Text>
         </Box>

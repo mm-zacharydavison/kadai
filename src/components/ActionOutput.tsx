@@ -6,13 +6,20 @@ interface ActionOutputProps {
   action: Action;
   cwd: string;
   config?: ZcliConfig;
+  onRunningChange?: (running: boolean) => void;
 }
 
-export function ActionOutput({ action, cwd, config }: ActionOutputProps) {
+export function ActionOutput({
+  action,
+  cwd,
+  config,
+  onRunningChange,
+}: ActionOutputProps) {
   const { lines, exitCode, running } = useActionRunner({
     action,
     cwd,
     config,
+    onRunningChange,
   });
 
   return (
