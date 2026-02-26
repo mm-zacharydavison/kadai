@@ -263,19 +263,5 @@ export function buildMenuItems(actions: Action[], path: string[]): MenuItem[] {
     return a.label.localeCompare(b.label);
   });
 
-  // Prepend "New" section only when there's a mix of new and non-new items
-  const newItems = items.filter((item) => item.isNew);
-  const hasNonNewItems = items.some(
-    (item) => item.type === "action" && !item.isNew,
-  );
-  if (newItems.length > 0 && hasNonNewItems) {
-    const newSection: MenuItem[] = [
-      { type: "separator", label: "New", value: "__sep_new" },
-      ...newItems,
-      { type: "separator", label: "───", value: "__sep_divider" },
-    ];
-    return [...newSection, ...items];
-  }
-
   return items;
 }

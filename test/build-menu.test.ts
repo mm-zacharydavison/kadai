@@ -15,53 +15,35 @@ function makeAction(overrides: Partial<Action> & { id: string }): Action {
 const NOW = Date.now();
 const ONE_DAY = 24 * 60 * 60 * 1000;
 
-describe("buildMenuItems — new actions section", () => {
-  test("no new section when no actions are recent", () => {
+describe("buildMenuItems — new action indicators", () => {
+  test("no isNew when no actions are recent", () => {
     const actions = [
       makeAction({ id: "old-a", addedAt: NOW - 30 * ONE_DAY }),
       makeAction({ id: "old-b", addedAt: NOW - 14 * ONE_DAY }),
     ];
     const items = buildMenuItems(actions, []);
-    expect(items.every((i) => i.type !== "separator")).toBe(true);
     expect(items.every((i) => !i.isNew)).toBe(true);
   });
 
-  test("no new section when all actions are recent", () => {
+  test("isNew is set when actions are recent", () => {
     const actions = [
       makeAction({ id: "new-a", addedAt: NOW - 1 * ONE_DAY }),
       makeAction({ id: "new-b", addedAt: NOW - 2 * ONE_DAY }),
     ];
     const items = buildMenuItems(actions, []);
-    expect(items.every((i) => i.type !== "separator")).toBe(true);
-    // Items should still be marked isNew
     expect(items.every((i) => i.isNew)).toBe(true);
-    // No duplicates
-    expect(items.length).toBe(2);
   });
 
-  test("new section appears when mix of new and old actions exist", () => {
+  test("no separators are produced", () => {
     const actions = [
       makeAction({ id: "new-a", addedAt: NOW - 1 * ONE_DAY }),
       makeAction({ id: "old-b", addedAt: NOW - 30 * ONE_DAY }),
     ];
     const items = buildMenuItems(actions, []);
-    expect(items[0]?.type).toBe("separator");
-    expect(items[0]?.label).toBe("New");
+    expect(items.every((i) => i.type !== "separator")).toBe(true);
   });
 
-  test("divider separator appears between new section and main list", () => {
-    const actions = [
-      makeAction({ id: "new-a", addedAt: NOW - 1 * ONE_DAY }),
-      makeAction({ id: "old-b", addedAt: NOW - 30 * ONE_DAY }),
-    ];
-    const items = buildMenuItems(actions, []);
-    const separators = items.filter((i) => i.type === "separator");
-    expect(separators.length).toBe(2);
-    expect(separators[0]?.label).toBe("New");
-    expect(separators[1]?.value).toBe("__sep_divider");
-  });
-
-  test("new actions appear in both new section and main list", () => {
+  test("new actions are not duplicated", () => {
     const actions = [
       makeAction({
         id: "new-a",
@@ -75,31 +57,8 @@ describe("buildMenuItems — new actions section", () => {
       }),
     ];
     const items = buildMenuItems(actions, []);
-
-    const actionItems = items.filter((i) => i.type === "action");
-    const newActionCount = actionItems.filter(
-      (i) => i.value === "new-a",
-    ).length;
-    expect(newActionCount).toBe(2);
-
-    // Old action appears once
-    const oldActionCount = actionItems.filter(
-      (i) => i.value === "old-b",
-    ).length;
-    expect(oldActionCount).toBe(1);
-  });
-
-  test("both instances of new actions have isNew: true", () => {
-    const actions = [
-      makeAction({ id: "new-a", addedAt: NOW - 1 * ONE_DAY }),
-      makeAction({ id: "old-b", addedAt: NOW - 30 * ONE_DAY }),
-    ];
-    const items = buildMenuItems(actions, []);
-    const newItems = items.filter(
-      (i) => i.type === "action" && i.value === "new-a",
-    );
-    expect(newItems.length).toBe(2);
-    expect(newItems.every((i) => i.isNew)).toBe(true);
+    expect(items.filter((i) => i.value === "new-a").length).toBe(1);
+    expect(items.filter((i) => i.value === "old-b").length).toBe(1);
   });
 
   test("old actions have isNew falsy", () => {
@@ -112,7 +71,7 @@ describe("buildMenuItems — new actions section", () => {
     expect(oldItems.every((i) => !i.isNew)).toBe(true);
   });
 
-  test("main list preserves normal sort order", () => {
+  test("preserves alphabetical sort order", () => {
     const actions = [
       makeAction({
         id: "charlie",
@@ -131,16 +90,10 @@ describe("buildMenuItems — new actions section", () => {
       }),
     ];
     const items = buildMenuItems(actions, []);
-
-    // All action items: first batch is new section copies, then full main list
-    const allActions = items.filter((i) => i.type === "action");
-    // New section: bravo, charlie (2 new actions, sorted alphabetically)
-    // Main list: alpha, bravo, charlie (3 total, sorted alphabetically)
-    const mainList = allActions.slice(2);
-    expect(mainList.map((i) => i.label)).toEqual(["Alpha", "Bravo", "Charlie"]);
+    expect(items.map((i) => i.label)).toEqual(["Alpha", "Bravo", "Charlie"]);
   });
 
-  test("new section works within category views", () => {
+  test("isNew works within category views", () => {
     const actions = [
       makeAction({
         id: "db/migrate",
@@ -156,38 +109,17 @@ describe("buildMenuItems — new actions section", () => {
       }),
     ];
     const items = buildMenuItems(actions, ["db"]);
-    expect(items[0]?.type).toBe("separator");
-    expect(items[0]?.label).toBe("New");
+    expect(items.every((i) => i.type !== "separator")).toBe(true);
 
-    const actionItems = items.filter((i) => i.type === "action");
-    // Migrate appears twice (new section + main), Seed appears once
-    expect(actionItems.filter((i) => i.value === "db/migrate").length).toBe(2);
-    expect(actionItems.filter((i) => i.value === "db/seed").length).toBe(1);
-  });
-
-  test("categories are not duplicated in new section", () => {
-    const actions = [
-      makeAction({
-        id: "db/migrate",
-        meta: { name: "Migrate" },
-        category: ["db"],
-        addedAt: NOW - 1 * ONE_DAY,
-      }),
-      makeAction({
-        id: "other",
-        meta: { name: "Other" },
-        addedAt: NOW - 30 * ONE_DAY,
-      }),
-    ];
-    const items = buildMenuItems(actions, []);
-    const categoryItems = items.filter((i) => i.type === "category");
-    expect(categoryItems.length).toBe(1);
+    const migrateItem = items.find((i) => i.value === "db/migrate");
+    const seedItem = items.find((i) => i.value === "db/seed");
+    expect(migrateItem?.isNew).toBe(true);
+    expect(seedItem?.isNew).toBeFalsy();
   });
 
   test("actions with no addedAt are not considered new", () => {
     const actions = [makeAction({ id: "no-date" })];
     const items = buildMenuItems(actions, []);
-    expect(items.every((i) => i.type !== "separator")).toBe(true);
     expect(items.every((i) => !i.isNew)).toBe(true);
   });
 
@@ -197,6 +129,6 @@ describe("buildMenuItems — new actions section", () => {
       makeAction({ id: "old", addedAt: NOW - 30 * ONE_DAY }),
     ];
     const items = buildMenuItems(actions, []);
-    expect(items.every((i) => i.type !== "separator")).toBe(true);
+    expect(items.every((i) => !i.isNew)).toBe(true);
   });
 });
