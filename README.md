@@ -33,11 +33,12 @@ On first run, kadai creates a `.kadai/` directory with a sample action and confi
 
 ### Supported Runtimes
 
-| Extension          | Runtime  |
-|--------------------|----------|
-| `.sh`, `.bash`     | bash     |
-| `.ts`, `.js`, `.mjs` | bun   |
-| `.py`              | python   |
+| Extension            | Runtime |
+|----------------------|---------|
+| `.sh`, `.bash`       | bash    |
+| `.ts`, `.js`, `.mjs` | bun     |
+| `.py`                | python  |
+| `.tsx`               | ink     |
 
 Shebangs are respected — if your script has `#!/usr/bin/env python3`, kadai uses that directly. Otherwise it finds the best available interpreter automatically (e.g. `uv run` before `python3` for `.py` files).
 
@@ -68,15 +69,64 @@ For JS/TS, use `//` comments:
 | `description` | string  | Short description                          |
 | `confirm`     | boolean | Require confirmation before running        |
 | `hidden`      | boolean | Hide from menu (still runnable via CLI)    |
+| `fullscreen`  | boolean | Use alternate screen buffer (`.tsx` only)  |
 | `interactive` | boolean | Hand over the full terminal to the script  |
 
 ### Interactive Scripts
 
 Scripts marked `interactive` get full terminal control — kadai exits its UI, runs the script with inherited stdio, then returns to the menu. Use this for scripts that need user input (readline prompts, password entry, etc.).
 
-### Ink UI Actions (Planned)
+### Ink TUI Actions
 
-`.tsx` files will be able to export an Ink component that renders directly inside kadai's UI, enabling rich interactive interfaces (forms, progress bars, tables) without spawning a subprocess.
+`.tsx` files let you build interactive terminal UIs that render directly inside kadai. Export a default React component that receives `InkActionProps`:
+
+```tsx
+// kadai:name Todo List
+// kadai:emoji ✅
+// kadai:description Manage project tasks
+import { Box, Text, useInput } from "ink";
+import { useState } from "react";
+import type { InkActionProps } from "kadai/types";
+
+export default function TodoList({ onExit }: InkActionProps) {
+  const [items] = useState(["Buy groceries", "Write code"]);
+  const [cursor, setCursor] = useState(0);
+
+  useInput((input, key) => {
+    if (key.upArrow) setCursor((c) => Math.max(0, c - 1));
+    if (key.downArrow) setCursor((c) => Math.min(items.length - 1, c + 1));
+    if (input === "q") onExit();
+  });
+
+  return (
+    <Box flexDirection="column">
+      {items.map((item, i) => (
+        <Text key={item} color={i === cursor ? "cyan" : undefined}>
+          {i === cursor ? "❯ " : "  "}{item}
+        </Text>
+      ))}
+      <Text dimColor>↑↓ navigate  q quit</Text>
+    </Box>
+  );
+}
+```
+
+Your component receives these props:
+
+| Prop    | Type                       | Description                              |
+|---------|----------------------------|------------------------------------------|
+| `cwd`   | `string`                   | Working directory kadai was launched from |
+| `env`   | `Record<string, string>`   | Environment variables from kadai config  |
+| `args`  | `string[]`                 | Additional arguments passed to the action |
+| `onExit`| `() => void`               | Call this to return to the kadai menu     |
+
+By default, ink actions render inline within kadai's UI. Add `kadai:fullscreen true` to use the terminal's alternate screen buffer — the action takes over the full screen and restores the previous view on exit:
+
+```tsx
+// kadai:fullscreen true
+```
+
+See `.kadai/actions/` in this repo for working examples.
 
 ### Config
 
