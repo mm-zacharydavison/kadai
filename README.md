@@ -68,11 +68,6 @@ For JS/TS, use `//` comments:
 | `confirm`     | boolean | Require confirmation before running        |
 | `hidden`      | boolean | Hide from menu (still runnable via CLI)    |
 | `fullscreen`  | boolean | Use alternate screen buffer (`.tsx` only)  |
-| `interactive` | boolean | Hand over the full terminal to the script  |
-
-### Interactive Scripts
-
-Scripts marked `interactive` get full terminal control — kadai exits its UI, runs the script with inherited stdio, then returns to the menu. Use this for scripts that need user input (readline prompts, password entry, etc.).
 
 ### Ink TUI Actions
 
