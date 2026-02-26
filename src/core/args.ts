@@ -14,7 +14,7 @@ export function parseArgs(argv: string[]): ParsedArgs {
   switch (command) {
     case "list": {
       if (!argv.includes("--json")) {
-        return { type: "error", message: "Usage: menux list --json [--all]" };
+        return { type: "error", message: "Usage: kadai list --json [--all]" };
       }
       const all = argv.includes("--all");
       return { type: "list", all };
@@ -25,7 +25,7 @@ export function parseArgs(argv: string[]): ParsedArgs {
       if (!actionId || actionId.startsWith("-")) {
         return {
           type: "error",
-          message: "Usage: menux run <action ID>",
+          message: "Usage: kadai run <action ID>",
         };
       }
       return { type: "run", actionId };

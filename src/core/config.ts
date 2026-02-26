@@ -1,13 +1,13 @@
 import { join } from "node:path";
-import type { MenuxConfig } from "../types.ts";
+import type { KadaiConfig } from "../types.ts";
 
-const DEFAULT_CONFIG: MenuxConfig = {
+const DEFAULT_CONFIG: KadaiConfig = {
   actionsDir: "actions",
   env: {},
 };
 
-export async function loadConfig(menuxDir: string): Promise<MenuxConfig> {
-  const configPath = join(menuxDir, "config.ts");
+export async function loadConfig(kadaiDir: string): Promise<KadaiConfig> {
+  const configPath = join(kadaiDir, "config.ts");
   const configFile = Bun.file(configPath);
 
   if (!(await configFile.exists())) {
@@ -15,7 +15,7 @@ export async function loadConfig(menuxDir: string): Promise<MenuxConfig> {
   }
 
   const mod = await import(configPath);
-  const userConfig: MenuxConfig = mod.default ?? mod;
+  const userConfig: KadaiConfig = mod.default ?? mod;
 
   return {
     actionsDir: userConfig.actionsDir ?? DEFAULT_CONFIG.actionsDir,

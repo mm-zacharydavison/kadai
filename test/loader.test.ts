@@ -74,15 +74,15 @@ describe("action discovery", () => {
     await cli.waitForText("No actions found");
   });
 
-  test("shows error when no .menux directory exists", async () => {
-    // Use a temp dir so findZcliDir can't walk up into a real .menux
-    const tempDir = await mkdtemp(join(tmpdir(), "menux-no-dir-"));
+  test("shows error when no .kadai directory exists", async () => {
+    // Use a temp dir so findZcliDir can't walk up into a real .kadai
+    const tempDir = await mkdtemp(join(tmpdir(), "kadai-no-dir-"));
     try {
       cli = spawnCLI({ cwd: tempDir });
       const result = await cli.waitForExit();
       // Should exit with error and helpful message
       expect(result.exitCode).not.toBe(0);
-      expect(result.output + result.stderr).toContain(".menux");
+      expect(result.output + result.stderr).toContain(".kadai");
     } finally {
       await rm(tempDir, { recursive: true, force: true });
     }

@@ -26,14 +26,14 @@ export function InitWizard({ cwd, onDone }: InitWizardProps) {
     writeInitFiles(cwd).then((result) => {
       setWriteResult(result);
       setPhase("done");
-      onDone({ menuxDir: `${cwd}/.menux` });
+      onDone({ kadaiDir: `${cwd}/.kadai` });
     });
   }
 
   return (
     <Box flexDirection="column" paddingLeft={2}>
       <Box marginBottom={1}>
-        <Text>No .menux directory found. Let's set one up.</Text>
+        <Text>No .kadai directory found. Let's set one up.</Text>
       </Box>
 
       {phase === "writing" && <Spinner label="Writing files..." />}

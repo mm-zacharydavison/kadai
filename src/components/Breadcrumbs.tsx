@@ -5,7 +5,7 @@ interface BreadcrumbsProps {
 }
 
 export function Breadcrumbs({ path }: BreadcrumbsProps) {
-  const parts = ["menux", ...path];
+  const parts = ["kadai", ...path];
   return (
     <Box marginBottom={1}>
       <Text dimColor>{parts.join(" > ")}</Text>

@@ -32,29 +32,29 @@ describe("generateConfigFile", () => {
 
 describe("writeInitFiles", () => {
   test("creates actions dir, sample action, and config", async () => {
-    const tmpDir = mkdtempSync(join(tmpdir(), "menux-write-test-"));
+    const tmpDir = mkdtempSync(join(tmpdir(), "kadai-write-test-"));
     try {
       const result = await writeInitFiles(tmpDir);
       expect(result.sampleCreated).toBe(true);
-      expect(existsSync(join(tmpDir, ".menux", "actions", "hello.sh"))).toBe(
+      expect(existsSync(join(tmpDir, ".kadai", "actions", "hello.sh"))).toBe(
         true,
       );
-      expect(existsSync(join(tmpDir, ".menux", "config.ts"))).toBe(true);
+      expect(existsSync(join(tmpDir, ".kadai", "config.ts"))).toBe(true);
 
       const content = await Bun.file(
-        join(tmpDir, ".menux", "actions", "hello.sh"),
+        join(tmpDir, ".kadai", "actions", "hello.sh"),
       ).text();
-      expect(content).toContain("Hello from menux!");
+      expect(content).toContain("Hello from kadai!");
     } finally {
       rmSync(tmpDir, { recursive: true, force: true });
     }
   });
 
   test("does not overwrite existing sample action", async () => {
-    const tmpDir = mkdtempSync(join(tmpdir(), "menux-write-test-"));
+    const tmpDir = mkdtempSync(join(tmpdir(), "kadai-write-test-"));
     try {
       // Create existing sample
-      const actionsDir = join(tmpDir, ".menux", "actions");
+      const actionsDir = join(tmpDir, ".kadai", "actions");
       const { mkdirSync } = await import("node:fs");
       mkdirSync(actionsDir, { recursive: true });
       await Bun.write(join(actionsDir, "hello.sh"), "existing content");
@@ -74,7 +74,7 @@ describe("writeInitFiles", () => {
 
 describe("writeInitFiles SKILL.md", () => {
   test("creates skill when .claude/ directory exists", async () => {
-    const tmpDir = mkdtempSync(join(tmpdir(), "menux-skill-test-"));
+    const tmpDir = mkdtempSync(join(tmpdir(), "kadai-skill-test-"));
     try {
       const { mkdirSync } = await import("node:fs");
       mkdirSync(join(tmpDir, ".claude"), { recursive: true });
@@ -82,29 +82,29 @@ describe("writeInitFiles SKILL.md", () => {
       const result = await writeInitFiles(tmpDir);
       expect(result.skillCreated).toBe(true);
 
-      const skillPath = join(tmpDir, ".claude", "skills", "menux", "SKILL.md");
+      const skillPath = join(tmpDir, ".claude", "skills", "kadai", "SKILL.md");
       expect(existsSync(skillPath)).toBe(true);
 
       const content = await Bun.file(skillPath).text();
-      expect(content).toContain("menux list --json");
-      expect(content).toContain("menux run");
+      expect(content).toContain("kadai list --json");
+      expect(content).toContain("kadai run");
       expect(content).toContain("## Creating Actions");
-      expect(content).toContain(".menux/actions/");
-      expect(content).toContain("menux:name");
+      expect(content).toContain(".kadai/actions/");
+      expect(content).toContain("kadai:name");
     } finally {
       rmSync(tmpDir, { recursive: true, force: true });
     }
   });
 
   test("creates skill when CLAUDE.md exists", async () => {
-    const tmpDir = mkdtempSync(join(tmpdir(), "menux-skill-test-"));
+    const tmpDir = mkdtempSync(join(tmpdir(), "kadai-skill-test-"));
     try {
       await Bun.write(join(tmpDir, "CLAUDE.md"), "# Project");
 
       const result = await writeInitFiles(tmpDir);
       expect(result.skillCreated).toBe(true);
 
-      const skillPath = join(tmpDir, ".claude", "skills", "menux", "SKILL.md");
+      const skillPath = join(tmpDir, ".claude", "skills", "kadai", "SKILL.md");
       expect(existsSync(skillPath)).toBe(true);
     } finally {
       rmSync(tmpDir, { recursive: true, force: true });
@@ -112,12 +112,12 @@ describe("writeInitFiles SKILL.md", () => {
   });
 
   test("skips skill when no .claude dir or CLAUDE.md", async () => {
-    const tmpDir = mkdtempSync(join(tmpdir(), "menux-skill-test-"));
+    const tmpDir = mkdtempSync(join(tmpdir(), "kadai-skill-test-"));
     try {
       const result = await writeInitFiles(tmpDir);
       expect(result.skillCreated).toBe(false);
 
-      const skillPath = join(tmpDir, ".claude", "skills", "menux", "SKILL.md");
+      const skillPath = join(tmpDir, ".claude", "skills", "kadai", "SKILL.md");
       expect(existsSync(skillPath)).toBe(false);
     } finally {
       rmSync(tmpDir, { recursive: true, force: true });
@@ -125,10 +125,10 @@ describe("writeInitFiles SKILL.md", () => {
   });
 
   test("does not overwrite existing SKILL.md", async () => {
-    const tmpDir = mkdtempSync(join(tmpdir(), "menux-skill-test-"));
+    const tmpDir = mkdtempSync(join(tmpdir(), "kadai-skill-test-"));
     try {
       // Pre-create the skill file
-      const skillDir = join(tmpDir, ".claude", "skills", "menux");
+      const skillDir = join(tmpDir, ".claude", "skills", "kadai");
       const { mkdirSync } = await import("node:fs");
       mkdirSync(skillDir, { recursive: true });
       await Bun.write(join(skillDir, "SKILL.md"), "custom content");
@@ -150,7 +150,7 @@ const tick = (ms = 50) => new Promise((r) => setTimeout(r, ms));
 
 describe("InitWizard", () => {
   test("shows initial message", () => {
-    const tmpDir = mkdtempSync(join(tmpdir(), "menux-wizard-test-"));
+    const tmpDir = mkdtempSync(join(tmpdir(), "kadai-wizard-test-"));
     try {
       const instance = render(
         React.createElement(InitWizard, {
@@ -160,7 +160,7 @@ describe("InitWizard", () => {
       );
 
       const output = stripAnsi(instance.lastFrame() ?? "");
-      expect(output).toContain("No .menux directory found");
+      expect(output).toContain("No .kadai directory found");
 
       instance.unmount();
     } finally {
@@ -169,7 +169,7 @@ describe("InitWizard", () => {
   });
 
   test("creates files and calls onDone", async () => {
-    const tmpDir = mkdtempSync(join(tmpdir(), "menux-wizard-test-"));
+    const tmpDir = mkdtempSync(join(tmpdir(), "kadai-wizard-test-"));
     let doneResult: InitResult | null = null;
 
     try {
@@ -187,11 +187,11 @@ describe("InitWizard", () => {
 
       expect(doneResult).not.toBeNull();
       const result = doneResult as unknown as InitResult;
-      expect(result.menuxDir).toBe(`${tmpDir}/.menux`);
-      expect(existsSync(join(tmpDir, ".menux", "actions", "hello.sh"))).toBe(
+      expect(result.kadaiDir).toBe(`${tmpDir}/.kadai`);
+      expect(existsSync(join(tmpDir, ".kadai", "actions", "hello.sh"))).toBe(
         true,
       );
-      expect(existsSync(join(tmpDir, ".menux", "config.ts"))).toBe(true);
+      expect(existsSync(join(tmpDir, ".kadai", "config.ts"))).toBe(true);
 
       instance.unmount();
     } finally {
@@ -200,7 +200,7 @@ describe("InitWizard", () => {
   });
 
   test("shows created files and done message", async () => {
-    const tmpDir = mkdtempSync(join(tmpdir(), "menux-wizard-test-"));
+    const tmpDir = mkdtempSync(join(tmpdir(), "kadai-wizard-test-"));
     try {
       const instance = render(
         React.createElement(InitWizard, {
@@ -212,9 +212,9 @@ describe("InitWizard", () => {
       await tick(200);
 
       const output = stripAnsi(instance.lastFrame() ?? "");
-      expect(output).toContain("Created .menux/config.ts");
-      expect(output).toContain("Created .menux/actions/hello.sh");
-      expect(output).toContain("Done! Run menux again to get started.");
+      expect(output).toContain("Created .kadai/config.ts");
+      expect(output).toContain("Created .kadai/actions/hello.sh");
+      expect(output).toContain("Done! Run kadai again to get started.");
 
       instance.unmount();
     } finally {

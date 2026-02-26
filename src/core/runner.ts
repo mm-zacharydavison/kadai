@@ -1,5 +1,5 @@
 import type { FileSink, Subprocess } from "bun";
-import type { Action, MenuxConfig, Runtime } from "../types.ts";
+import type { Action, KadaiConfig, Runtime } from "../types.ts";
 
 export interface RunHandle {
   proc: Subprocess;
@@ -10,7 +10,7 @@ export interface RunHandle {
 
 export function runAction(
   action: Action,
-  options: { cwd: string; config?: MenuxConfig },
+  options: { cwd: string; config?: KadaiConfig },
 ): RunHandle {
   const { cwd, config } = options;
 

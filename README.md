@@ -1,6 +1,6 @@
 <img width="1024" height="1024" alt="image" src="https://github.com/user-attachments/assets/daa548e6-5984-4cde-93d3-7c4684de639a" />
 
-# menux
+# kadai
 
 To install dependencies:
 

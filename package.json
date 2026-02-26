@@ -1,9 +1,9 @@
 {
-  "name": "menux",
+  "name": "kadai",
   "version": "0.1.0",
   "type": "module",
   "bin": {
-    "menux": "./dist/cli.js"
+    "kadai": "./dist/cli.js"
   },
   "scripts": {
     "build": "bun build.ts",

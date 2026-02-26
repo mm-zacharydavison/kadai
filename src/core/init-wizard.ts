@@ -4,7 +4,7 @@ import { join } from "node:path";
 // ─── Init result ──────────────────────────────────────────────────
 
 export interface InitResult {
-  menuxDir: string;
+  kadaiDir: string;
 }
 
 // ─── Config file generation ───────────────────────────────────────
@@ -25,8 +25,8 @@ export interface WriteInitFilesResult {
 export async function writeInitFiles(
   cwd: string,
 ): Promise<WriteInitFilesResult> {
-  const menuxDir = join(cwd, ".menux");
-  const actionsDir = join(menuxDir, "actions");
+  const kadaiDir = join(cwd, ".kadai");
+  const actionsDir = join(kadaiDir, "actions");
   mkdirSync(actionsDir, { recursive: true });
 
   // Sample action
@@ -37,12 +37,12 @@ export async function writeInitFiles(
     await Bun.write(
       sampleAction,
       `#!/bin/bash
-# menux:name Hello World
-# menux:emoji 👋
-# menux:description A sample action — edit or delete this file
+# kadai:name Hello World
+# kadai:emoji 👋
+# kadai:description A sample action — edit or delete this file
 
-echo "Hello from menux!"
-echo "Add your own scripts to .menux/actions/ to get started."
+echo "Hello from kadai!"
+echo "Add your own scripts to .kadai/actions/ to get started."
 `,
     );
     sampleCreated = true;
@@ -50,7 +50,7 @@ echo "Add your own scripts to .menux/actions/ to get started."
 
   // Config file
   const configContent = generateConfigFile();
-  const configPath = join(menuxDir, "config.ts");
+  const configPath = join(kadaiDir, "config.ts");
   await Bun.write(configPath, configContent);
 
   // Claude Code skill file — only if the repo uses Claude Code
@@ -58,7 +58,7 @@ echo "Add your own scripts to .menux/actions/ to get started."
   const hasClaudeDir = existsSync(join(cwd, ".claude"));
   const hasClaudeMd = existsSync(join(cwd, "CLAUDE.md"));
   if (hasClaudeDir || hasClaudeMd) {
-    const skillDir = join(cwd, ".claude", "skills", "menux");
+    const skillDir = join(cwd, ".claude", "skills", "kadai");
     const skillPath = join(skillDir, "SKILL.md");
     if (!(await Bun.file(skillPath).exists())) {
       mkdirSync(skillDir, { recursive: true });
@@ -72,21 +72,21 @@ echo "Add your own scripts to .menux/actions/ to get started."
 
 function generateSkillFile(): string {
   return `---
-name: menux
+name: kadai
 description: >-
-  menux is a script runner for this project. Discover available actions with
-  menux list --json, and run them with menux run <action-id>.
+  kadai is a script runner for this project. Discover available actions with
+  kadai list --json, and run them with kadai run <action-id>.
 user-invocable: false
 ---
 
-# menux — Project Script Runner
+# kadai — Project Script Runner
 
-menux manages and runs project-specific shell scripts stored in \`.menux/actions/\`.
+kadai manages and runs project-specific shell scripts stored in \`.kadai/actions/\`.
 
 ## Discovering Actions
 
 \`\`\`bash
-menux list --json
+kadai list --json
 \`\`\`
 
 Returns a JSON array of available actions:
@@ -105,14 +105,14 @@ Returns a JSON array of available actions:
 ]
 \`\`\`
 
-Use \`--all\` to include hidden actions: \`menux list --json --all\`
+Use \`--all\` to include hidden actions: \`kadai list --json --all\`
 
-Always use \`menux list --json\` for the current set of actions — do not hardcode action lists.
+Always use \`kadai list --json\` for the current set of actions — do not hardcode action lists.
 
 ## Running Actions
 
 \`\`\`bash
-menux run <action-id>
+kadai run <action-id>
 \`\`\`
 
 Runs the action and streams stdout/stderr directly. The process exits with the action's exit code.
@@ -121,22 +121,22 @@ Confirmation prompts are automatically skipped in non-TTY environments.
 ### Examples
 
 \`\`\`bash
-menux run hello
-menux run database/reset
+kadai run hello
+kadai run database/reset
 \`\`\`
 
 ## Creating Actions
 
-Create a script file in \`.menux/actions/\`. Supported extensions: \`.sh\`, \`.bash\`, \`.ts\`, \`.js\`, \`.mjs\`, \`.py\`.
+Create a script file in \`.kadai/actions/\`. Supported extensions: \`.sh\`, \`.bash\`, \`.ts\`, \`.js\`, \`.mjs\`, \`.py\`.
 
-Add metadata as comments in the first 20 lines using \`# menux:<key> <value>\` (for shell/python) or \`// menux:<key> <value>\` (for JS/TS):
+Add metadata as comments in the first 20 lines using \`# kadai:<key> <value>\` (for shell/python) or \`// kadai:<key> <value>\` (for JS/TS):
 
 \`\`\`bash
 #!/bin/bash
-# menux:name Deploy Staging
-# menux:emoji 🚀
-# menux:description Deploy the app to the staging environment
-# menux:confirm true
+# kadai:name Deploy Staging
+# kadai:emoji 🚀
+# kadai:description Deploy the app to the staging environment
+# kadai:confirm true
 
 echo "Deploying..."
 \`\`\`
@@ -156,7 +156,7 @@ If \`name\` is omitted, it is inferred from the filename (e.g. \`deploy-staging.
 Organize actions into categories using subdirectories:
 
 \`\`\`
-.menux/actions/
+.kadai/actions/
   hello.sh              → id: "hello"
   database/
     migrate.sh          → id: "database/migrate"

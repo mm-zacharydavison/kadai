@@ -54,12 +54,12 @@ function MenuList({
 
 interface AppProps {
   cwd: string;
-  menuxDir: string;
+  kadaiDir: string;
   /** Called when an interactive action needs to run with inherited stdio */
   onRunInteractive?: (action: Action) => void;
 }
 
-export function App({ cwd, menuxDir, onRunInteractive }: AppProps) {
+export function App({ cwd, kadaiDir, onRunInteractive }: AppProps) {
   const { exit } = useApp();
   const [isProcessRunning, setIsProcessRunning] = useState(false);
 
@@ -73,7 +73,7 @@ export function App({ cwd, menuxDir, onRunInteractive }: AppProps) {
   const search = useSearch();
   const nav = useNavigation({ onExit: exit, onNavigate: search.resetSearch });
   const { actions, actionsRef, config, loading } = useActions({
-    menuxDir,
+    kadaiDir,
   });
 
   useKeyboard({

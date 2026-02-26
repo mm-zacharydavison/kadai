@@ -82,9 +82,9 @@ export type Screen =
   /** Confirmation prompt before running an action */
   | { type: "confirm"; actionId: string };
 
-export interface MenuxConfig {
+export interface KadaiConfig {
   /**
-   * Subdirectory name under `.menux/` containing actions
+   * Subdirectory name under `.kadai/` containing actions
    * @default "actions"
    */
   actionsDir?: string;

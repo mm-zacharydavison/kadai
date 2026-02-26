@@ -2,31 +2,31 @@ import { join } from "node:path";
 import { useEffect, useRef, useState } from "react";
 import { loadConfig } from "../core/config.ts";
 import { loadActions } from "../core/loader.ts";
-import type { Action, MenuxConfig } from "../types.ts";
+import type { Action, KadaiConfig } from "../types.ts";
 
 interface UseActionsOptions {
-  menuxDir: string;
+  kadaiDir: string;
 }
 
-export function useActions({ menuxDir }: UseActionsOptions) {
+export function useActions({ kadaiDir }: UseActionsOptions) {
   const [actions, setActions] = useState<Action[]>([]);
-  const [config, setConfig] = useState<MenuxConfig>({});
+  const [config, setConfig] = useState<KadaiConfig>({});
   const [loading, setLoading] = useState(true);
   const actionsRef = useRef(actions);
   actionsRef.current = actions;
 
   useEffect(() => {
     (async () => {
-      const cfg = await loadConfig(menuxDir);
+      const cfg = await loadConfig(kadaiDir);
       setConfig(cfg);
 
-      const actionsDir = join(menuxDir, cfg.actionsDir ?? "actions");
+      const actionsDir = join(kadaiDir, cfg.actionsDir ?? "actions");
       const localActions = await loadActions(actionsDir);
 
       setActions(localActions);
       setLoading(false);
     })();
-  }, [menuxDir]);
+  }, [kadaiDir]);
 
   return { actions, actionsRef, config, loading };
 }

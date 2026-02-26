@@ -35,13 +35,13 @@ describe("metadata parsing", () => {
 
   test("infers name from filename when no metadata present", async () => {
     cli = spawnCLI({ cwd: fixturePath("basic-repo") });
-    // cleanup.py has no menux: frontmatter, name should be inferred from filename
+    // cleanup.py has no kadai: frontmatter, name should be inferred from filename
     await cli.waitForText("Cleanup");
   });
 
   test("ignores frontmatter after line 20", async () => {
     cli = spawnCLI({ cwd: fixturePath("metadata-edge-cases") });
-    // late-metadata.sh has menux:name on line 21 — should be ignored
+    // late-metadata.sh has kadai:name on line 21 — should be ignored
     // Name should be inferred from filename: "Late Metadata"
     await cli.waitForText("Late Metadata");
   });
@@ -59,20 +59,20 @@ describe("metadata parsing", () => {
 
   test("displays name inferred from filename with no metadata", async () => {
     cli = spawnCLI({ cwd: fixturePath("metadata-edge-cases") });
-    // no-metadata.sh has no menux: comments — name inferred as "No Metadata"
+    // no-metadata.sh has no kadai: comments — name inferred as "No Metadata"
     await cli.waitForText("No Metadata");
   });
 
   test("parses boolean interactive field from frontmatter", async () => {
     const meta = await extractMetadata(
-      fixturePath("metadata-edge-cases/.menux/actions/interactive-action.sh"),
+      fixturePath("metadata-edge-cases/.kadai/actions/interactive-action.sh"),
     );
     expect(meta.interactive).toBe(true);
   });
 
   test("interactive defaults to false when not specified", async () => {
     const meta = await extractMetadata(
-      fixturePath("metadata-edge-cases/.menux/actions/no-metadata.sh"),
+      fixturePath("metadata-edge-cases/.kadai/actions/no-metadata.sh"),
     );
     expect(meta.interactive).toBe(false);
   });

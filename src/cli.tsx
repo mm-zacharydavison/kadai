@@ -12,17 +12,17 @@ if (parsed.type === "error") {
 }
 
 if (parsed.type === "list" || parsed.type === "run") {
-  const menuxDir = findZcliDir(cwd);
-  if (!menuxDir) {
+  const kadaiDir = findZcliDir(cwd);
+  if (!kadaiDir) {
     process.stderr.write(
-      "Error: No .menux directory found. Run menux to initialize.\n",
+      "Error: No .kadai directory found. Run kadai to initialize.\n",
     );
     process.exit(1);
   }
   if (parsed.type === "list") {
-    await handleList({ menuxDir, all: parsed.all });
+    await handleList({ kadaiDir, all: parsed.all });
   } else {
-    await handleRun({ menuxDir, actionId: parsed.actionId, cwd });
+    await handleRun({ kadaiDir, actionId: parsed.actionId, cwd });
   }
 }
 
@@ -36,21 +36,21 @@ const { loadConfig } = await import("./core/config.ts");
 
 import type { Action } from "./types.ts";
 
-const menuxDir = findZcliDir(cwd);
-if (!menuxDir) {
+const kadaiDir = findZcliDir(cwd);
+if (!kadaiDir) {
   if (!process.stdin.isTTY) {
     process.stderr.write(
-      "Error: No .menux directory found. Create a .menux/actions/ directory to get started.\n",
+      "Error: No .kadai directory found. Create a .kadai/actions/ directory to get started.\n",
     );
     process.exit(1);
   }
   const { writeInitFiles } = await import("./core/init-wizard.ts");
-  console.log("No .menux directory found. Setting one up.\n");
+  console.log("No .kadai directory found. Setting one up.\n");
   const result = await writeInitFiles(cwd);
-  console.log("  Created .menux/config.ts");
-  if (result.sampleCreated) console.log("  Created .menux/actions/hello.sh");
-  if (result.skillCreated) console.log("  Created .claude/skills/menux/SKILL.md");
-  console.log("\nDone! Run menux again to get started.");
+  console.log("  Created .kadai/config.ts");
+  if (result.sampleCreated) console.log("  Created .kadai/actions/hello.sh");
+  if (result.skillCreated) console.log("  Created .claude/skills/kadai/SKILL.md");
+  console.log("\nDone! Run kadai again to get started.");
   process.exit(0);
 }
 
@@ -163,7 +163,7 @@ while (true) {
   const instance = render(
     React.createElement(App, {
       cwd,
-      menuxDir,
+      kadaiDir,
       onRunInteractive: (action: Action) => {
         pendingInteractiveAction = action;
       },
@@ -182,7 +182,7 @@ while (true) {
   // Run the interactive action with full stdio passthrough
   // TS narrows to `never` after the break because it can't see the callback mutation
   const action: Action = pendingInteractiveAction;
-  const config = await loadConfig(menuxDir);
+  const config = await loadConfig(kadaiDir);
   const cmd = resolveCommand(action);
   const env: Record<string, string> = {
     ...(process.env as Record<string, string>),

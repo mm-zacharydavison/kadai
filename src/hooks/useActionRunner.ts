@@ -2,12 +2,12 @@ import type { FileSink } from "bun";
 import { useInput } from "ink";
 import { useEffect, useRef, useState } from "react";
 import { runAction } from "../core/runner.ts";
-import type { Action, MenuxConfig } from "../types.ts";
+import type { Action, KadaiConfig } from "../types.ts";
 
 interface UseActionRunnerOptions {
   action: Action | null;
   cwd: string;
-  config?: MenuxConfig;
+  config?: KadaiConfig;
   enabled?: boolean;
   onRunningChange?: (running: boolean) => void;
 }

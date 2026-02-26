@@ -4,20 +4,20 @@ import { loadActions } from "./loader.ts";
 import { resolveCommand } from "./runner.ts";
 
 interface ListOptions {
-  menuxDir: string;
+  kadaiDir: string;
   all: boolean;
 }
 
 interface RunOptions {
-  menuxDir: string;
+  kadaiDir: string;
   actionId: string;
   cwd: string;
 }
 
 export async function handleList(options: ListOptions): Promise<never> {
-  const { menuxDir, all } = options;
-  const config = await loadConfig(menuxDir);
-  const actionsDir = join(menuxDir, config.actionsDir ?? "actions");
+  const { kadaiDir, all } = options;
+  const config = await loadConfig(kadaiDir);
+  const actionsDir = join(kadaiDir, config.actionsDir ?? "actions");
   const actions = await loadActions(actionsDir);
 
   const filtered = all ? actions : actions.filter((a) => !a.meta.hidden);
@@ -37,9 +37,9 @@ export async function handleList(options: ListOptions): Promise<never> {
 }
 
 export async function handleRun(options: RunOptions): Promise<never> {
-  const { menuxDir, actionId, cwd } = options;
-  const config = await loadConfig(menuxDir);
-  const actionsDir = join(menuxDir, config.actionsDir ?? "actions");
+  const { kadaiDir, actionId, cwd } = options;
+  const config = await loadConfig(kadaiDir);
+  const actionsDir = join(kadaiDir, config.actionsDir ?? "actions");
   const actions = await loadActions(actionsDir);
 
   const action = actions.find((a) => a.id === actionId);

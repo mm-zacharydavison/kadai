@@ -35,7 +35,7 @@ describe("navigation", () => {
     cli.type("database");
     cli.press(Keys.ENTER);
     // Breadcrumbs should reflect the path
-    await cli.waitForText("menux");
+    await cli.waitForText("kadai");
     await cli.waitForText("database");
   });
 
@@ -77,7 +77,7 @@ describe("navigation", () => {
     cli.type("Hello World");
     cli.press(Keys.ENTER);
     // Should switch to output screen
-    await cli.waitForText("Hello from menux!");
+    await cli.waitForText("Hello from kadai!");
   });
 
   test("escape from output screen returns to menu", async () => {
@@ -86,7 +86,7 @@ describe("navigation", () => {
     cli.type("/");
     cli.type("Hello World");
     cli.press(Keys.ENTER);
-    await cli.waitForText("Hello from menux!");
+    await cli.waitForText("Hello from kadai!");
     // Press escape to go back to menu
     cli.press(Keys.ESCAPE);
     await cli.waitForText("Hello World");
