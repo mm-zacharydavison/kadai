@@ -31,6 +31,10 @@ const { Readable } = await import("node:stream");
 const { render } = await import("ink");
 const React = await import("react");
 const { App } = await import("./app.tsx");
+const { resolveCommand } = await import("./core/runner.ts");
+const { loadConfig } = await import("./core/config.ts");
+
+import type { Action } from "./types.ts";
 
 const xcliDir = findXcliDir(cwd);
 if (!xcliDir) {
@@ -150,19 +154,68 @@ function createStdinStream(): NodeJS.ReadStream {
   return charStream as unknown as NodeJS.ReadStream;
 }
 
-const stdinStream = createStdinStream();
+let pendingInteractiveAction: Action | null = null;
 
-const instance = render(
-  React.createElement(App, {
+// Loop: render TUI → run interactive action → re-render TUI
+while (true) {
+  pendingInteractiveAction = null;
+  const stdinStream = createStdinStream();
+
+  const instance = render(
+    React.createElement(App, {
+      cwd,
+      xcliDir,
+      onRunInteractive: (action: Action) => {
+        pendingInteractiveAction = action;
+      },
+    }),
+    {
+      stdin: stdinStream,
+      stdout: process.stdout,
+      stderr: process.stderr,
+    },
+  );
+
+  await instance.waitUntilExit();
+
+  if (!pendingInteractiveAction) break;
+
+  // Run the interactive action with full stdio passthrough
+  // TS narrows to `never` after the break because it can't see the callback mutation
+  const action: Action = pendingInteractiveAction;
+  const config = await loadConfig(xcliDir);
+  const cmd = resolveCommand(action);
+  const env: Record<string, string> = {
+    ...(process.env as Record<string, string>),
+    ...(config.env ?? {}),
+  };
+
+  console.log(
+    `${action.meta.emoji ? `${action.meta.emoji} ` : ""}${action.meta.name}\n`,
+  );
+
+  const proc = Bun.spawn(cmd, {
     cwd,
-    xcliDir,
-  }),
-  {
-    stdin: stdinStream,
-    stdout: process.stdout,
-    stderr: process.stderr,
-  },
-);
+    stdout: "inherit",
+    stderr: "inherit",
+    stdin: "inherit",
+    env,
+  });
 
-await instance.waitUntilExit();
+  const exitCode = await proc.exited;
+  const color = exitCode === 0 ? "\x1b[32m" : "\x1b[31m";
+  const symbol = exitCode === 0 ? "✓" : "✗";
+  console.log(`\n${color}${symbol} exit code ${exitCode}\x1b[0m`);
+  console.log("\nPress enter to return to menu...");
+
+  // Wait for user to press enter before re-rendering the TUI
+  await new Promise<void>((resolve) => {
+    const onData = () => {
+      process.stdin.removeListener("data", onData);
+      resolve();
+    };
+    process.stdin.on("data", onData);
+  });
+}
+
 process.exit(0);

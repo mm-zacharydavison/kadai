@@ -15,6 +15,13 @@ export interface ActionMeta {
    * @default false
    */
   hidden?: boolean;
+  /**
+   * Run with inherited stdio instead of piped output.
+   * Enables interactive prompts (readline, password input, etc.)
+   * by temporarily exiting the TUI.
+   * @default false
+   */
+  interactive?: boolean;
 }
 
 export interface Action {

@@ -54,10 +54,19 @@ function MenuList({
 interface AppProps {
   cwd: string;
   xcliDir: string;
+  /** Called when an interactive action needs to run with inherited stdio */
+  onRunInteractive?: (action: Action) => void;
 }
 
-export function App({ cwd, xcliDir }: AppProps) {
+export function App({ cwd, xcliDir, onRunInteractive }: AppProps) {
   const { exit } = useApp();
+
+  const handleRunInteractive = onRunInteractive
+    ? (action: Action) => {
+        onRunInteractive(action);
+        exit();
+      }
+    : undefined;
 
   const search = useSearch();
   const nav = useNavigation({ onExit: exit, onNavigate: search.resetSearch });
@@ -81,6 +90,7 @@ export function App({ cwd, xcliDir }: AppProps) {
     getMenuItems: buildMenuItems,
     computeFiltered: search.computeFiltered,
     isActive: nav.currentScreen.type !== "confirm",
+    onRunInteractive: handleRunInteractive,
   });
 
   if (loading) {
@@ -132,6 +142,10 @@ export function App({ cwd, xcliDir }: AppProps) {
     if (!action) return <Text color="red">Action not found</Text>;
 
     const handleConfirm = () => {
+      if (action.meta.interactive && handleRunInteractive) {
+        handleRunInteractive(action);
+        return;
+      }
       nav.setStack((s) => {
         const next = [...s.slice(0, -1), { type: "output" as const, actionId }];
         nav.stackRef.current = next;

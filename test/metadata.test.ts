@@ -1,4 +1,5 @@
-import { afterEach, describe, test } from "bun:test";
+import { afterEach, describe, expect, test } from "bun:test";
+import { extractMetadata } from "../src/core/metadata.ts";
 import { type CLISession, fixturePath, Keys, spawnCLI } from "./harness";
 
 describe("metadata parsing", () => {
@@ -60,5 +61,19 @@ describe("metadata parsing", () => {
     cli = spawnCLI({ cwd: fixturePath("metadata-edge-cases") });
     // no-metadata.sh has no xcli: comments — name inferred as "No Metadata"
     await cli.waitForText("No Metadata");
+  });
+
+  test("parses boolean interactive field from frontmatter", async () => {
+    const meta = await extractMetadata(
+      fixturePath("metadata-edge-cases/.xcli/actions/interactive-action.sh"),
+    );
+    expect(meta.interactive).toBe(true);
+  });
+
+  test("interactive defaults to false when not specified", async () => {
+    const meta = await extractMetadata(
+      fixturePath("metadata-edge-cases/.xcli/actions/no-metadata.sh"),
+    );
+    expect(meta.interactive).toBe(false);
   });
 });
