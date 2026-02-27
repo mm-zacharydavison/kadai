@@ -1,14 +1,5 @@
 import type { Action, Runtime } from "../types.ts";
-
-// Bun.which() result cache to avoid repeated PATH lookups
-const whichCache = new Map<string, string | null>();
-
-function cachedWhich(bin: string): string | null {
-  if (whichCache.has(bin)) return whichCache.get(bin) ?? null;
-  const result = Bun.which(bin);
-  whichCache.set(bin, result ?? null);
-  return result ?? null;
-}
+import { cachedWhich } from "./which.ts";
 
 /**
  * Parse a shebang line into a command array.

@@ -9,6 +9,7 @@ function makeAction(
     filePath: `/fake/${overrides.id}.sh`,
     meta: { name: overrides.id.split("/").pop() ?? overrides.id },
     runtime: "bash",
+    origin: { type: "local" },
     ...overrides,
   };
 }
@@ -84,5 +85,92 @@ describe("buildMenuItems", () => {
     const firstActionIndex = types.indexOf("action");
     const lastCategoryIndex = types.lastIndexOf("category");
     expect(lastCategoryIndex).toBeLessThan(firstActionIndex);
+  });
+});
+
+describe("buildMenuItems — plugin support", () => {
+  const pluginAction = makeAction({
+    id: "@zdavison/claude-tools/hello",
+    category: ["@zdavison/claude-tools"],
+    origin: { type: "plugin", pluginName: "@zdavison/claude-tools" },
+  });
+
+  const pluginNestedAction = makeAction({
+    id: "@zdavison/claude-tools/deploy/staging",
+    category: ["@zdavison/claude-tools", "deploy"],
+    origin: { type: "plugin", pluginName: "@zdavison/claude-tools" },
+  });
+
+  const localAction = makeAction({
+    id: "hello",
+    category: [],
+    origin: { type: "local" },
+  });
+
+  const localCategoryAction = makeAction({
+    id: "database/reset",
+    category: ["database"],
+    origin: { type: "local" },
+  });
+
+  const userGlobalAction = makeAction({
+    id: "~/my-script",
+    category: ["~"],
+    origin: { type: "plugin", pluginName: "~" },
+  });
+
+  const allPluginActions = [
+    pluginAction,
+    pluginNestedAction,
+    localAction,
+    localCategoryAction,
+    userGlobalAction,
+  ];
+
+  test("plugin categories have isPlugin flag", () => {
+    const items = buildMenuItems(allPluginActions, []);
+    const pluginCat = items.find(
+      (i) => i.type === "category" && i.value === "@zdavison/claude-tools",
+    );
+    expect(pluginCat).toBeDefined();
+    expect(pluginCat?.isPlugin).toBe(true);
+  });
+
+  test("local categories do NOT have isPlugin flag", () => {
+    const items = buildMenuItems(allPluginActions, []);
+    const localCat = items.find(
+      (i) => i.type === "category" && i.value === "database",
+    );
+    expect(localCat).toBeDefined();
+    expect(localCat?.isPlugin).toBeFalsy();
+  });
+
+  test("sort order: user-global → plugins → local categories → local actions", () => {
+    const items = buildMenuItems(allPluginActions, []);
+    const labels = items.map((i) => i.value);
+
+    const tildeIdx = labels.indexOf("~");
+    const pluginIdx = labels.indexOf("@zdavison/claude-tools");
+    const dbIdx = labels.indexOf("database");
+    const helloIdx = labels.indexOf("hello");
+
+    // User-global first, then plugins, then local categories, then actions
+    expect(tildeIdx).toBeLessThan(pluginIdx);
+    expect(pluginIdx).toBeLessThan(dbIdx);
+    expect(dbIdx).toBeLessThan(helloIdx);
+  });
+
+  test("navigating into plugin category shows plugin actions", () => {
+    const items = buildMenuItems(allPluginActions, ["@zdavison/claude-tools"]);
+    const actionValues = items
+      .filter((i) => i.type === "action")
+      .map((i) => i.value);
+    expect(actionValues).toContain("@zdavison/claude-tools/hello");
+
+    // Should also show "deploy" as a subcategory
+    const categoryLabels = items
+      .filter((i) => i.type === "category")
+      .map((i) => i.label);
+    expect(categoryLabels).toContain("deploy");
   });
 });

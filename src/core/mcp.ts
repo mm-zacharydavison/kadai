@@ -4,6 +4,11 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import type { Action, KadaiConfig } from "../types.ts";
 import { loadConfig } from "./config.ts";
 import { loadActions } from "./loader.ts";
+import {
+  loadCachedPlugins,
+  loadPathPlugin,
+  loadUserGlobalActions,
+} from "./plugins.ts";
 import { resolveCommand } from "./runner.ts";
 
 /**
@@ -106,9 +111,24 @@ export async function startMcpServer(
   if (kadaiDir) {
     config = await loadConfig(kadaiDir);
     const actionsDir = join(kadaiDir, config.actionsDir ?? "actions");
-    visibleActions = (await loadActions(actionsDir)).filter(
-      (a) => !a.meta.hidden,
-    );
+    let allActions = await loadActions(actionsDir);
+
+    // Load plugin actions
+    const globalActions = await loadUserGlobalActions();
+    allActions = [...allActions, ...globalActions];
+
+    if (config.plugins) {
+      for (const source of config.plugins) {
+        if ("path" in source) {
+          const pathActions = await loadPathPlugin(kadaiDir, source);
+          allActions = [...allActions, ...pathActions];
+        }
+      }
+      const cachedActions = await loadCachedPlugins(kadaiDir, config.plugins);
+      allActions = [...allActions, ...cachedActions];
+    }
+
+    visibleActions = allActions.filter((a) => !a.meta.hidden);
   }
 
   const server = new McpServer({ name: "kadai", version: "0.3.0" });

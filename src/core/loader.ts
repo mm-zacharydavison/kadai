@@ -1,6 +1,6 @@
 import { readdir } from "node:fs/promises";
 import { join } from "node:path";
-import type { Action, Runtime } from "../types.ts";
+import type { Action, ActionOrigin, Runtime } from "../types.ts";
 import { extractMetadata } from "./metadata.ts";
 
 const SUPPORTED_EXTENSIONS = new Set([
@@ -81,10 +81,13 @@ async function getGitAddedDates(dir: string): Promise<Map<string, number>> {
   return dates;
 }
 
-export async function loadActions(actionsDir: string): Promise<Action[]> {
+export async function loadActions(
+  actionsDir: string,
+  origin: ActionOrigin = { type: "local" },
+): Promise<Action[]> {
   const actions: Action[] = [];
   const gitDates = await getGitAddedDates(actionsDir);
-  await scanDirectory(actionsDir, actionsDir, [], actions, 0, gitDates);
+  await scanDirectory(actionsDir, actionsDir, [], actions, 0, gitDates, origin);
   actions.sort((a, b) => a.meta.name.localeCompare(b.meta.name));
   return actions;
 }
@@ -96,6 +99,7 @@ async function scanDirectory(
   actions: Action[],
   depth: number,
   gitDates?: Map<string, number>,
+  origin: ActionOrigin = { type: "local" },
 ): Promise<void> {
   if (depth > 3) return;
 
@@ -119,6 +123,7 @@ async function scanDirectory(
         actions,
         depth + 1,
         gitDates,
+        origin,
       );
     } else if (entry.isFile()) {
       const ext = `.${entry.name.split(".").pop()}`;
@@ -138,6 +143,7 @@ async function scanDirectory(
         category,
         runtime: runtimeFromExtension(ext),
         addedAt,
+        origin,
         ...(shebang ? { shebang } : {}),
       });
     }

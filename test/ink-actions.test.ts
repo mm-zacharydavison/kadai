@@ -41,6 +41,7 @@ describe("ink runtime in runner", () => {
       filePath: "/tmp/test.tsx",
       category: [],
       runtime: "ink",
+      origin: { type: "local" },
       ...overrides,
     };
   }

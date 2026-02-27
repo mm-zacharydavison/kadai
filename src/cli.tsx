@@ -30,7 +30,7 @@ if (parsed.type === "mcp") {
   await new Promise(() => {});
 }
 
-if (parsed.type === "list" || parsed.type === "run") {
+if (parsed.type === "list" || parsed.type === "run" || parsed.type === "sync") {
   const kadaiDir = findZcliDir(cwd);
   if (!kadaiDir) {
     process.stderr.write(
@@ -40,8 +40,11 @@ if (parsed.type === "list" || parsed.type === "run") {
   }
   if (parsed.type === "list") {
     await handleList({ kadaiDir, all: parsed.all });
-  } else {
+  } else if (parsed.type === "run") {
     await handleRun({ kadaiDir, actionId: parsed.actionId, cwd });
+  } else {
+    const { handleSync } = await import("./core/commands.ts");
+    await handleSync({ kadaiDir });
   }
 }
 

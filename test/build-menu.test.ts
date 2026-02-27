@@ -8,6 +8,7 @@ function makeAction(overrides: Partial<Action> & { id: string }): Action {
     filePath: `/fake/${overrides.id}.ts`,
     category: [],
     runtime: "bun",
+    origin: { type: "local" },
     ...overrides,
   };
 }

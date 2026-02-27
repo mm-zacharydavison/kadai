@@ -59,6 +59,10 @@ describe("parseArgs", () => {
     expect(parseArgs(["-v"])).toEqual({ type: "version" });
   });
 
+  test("sync → sync", () => {
+    expect(parseArgs(["sync"])).toEqual({ type: "sync" });
+  });
+
   test("unknown command → error", () => {
     const result = parseArgs(["foobar"]);
     expect(result.type).toBe("error");

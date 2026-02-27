@@ -170,6 +170,7 @@ describe("resolveCommand", () => {
       filePath: "/tmp/test.sh",
       category: [],
       runtime: "bash",
+      origin: { type: "local" },
       ...overrides,
     };
   }

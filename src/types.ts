@@ -47,6 +47,8 @@ export interface Action {
   shebang?: string;
   /** Timestamp (ms) when this action file was created */
   addedAt?: number;
+  /** Where this action came from (local .kadai/actions/ or a plugin) */
+  origin: ActionOrigin;
 }
 
 /**
@@ -70,6 +72,8 @@ export interface MenuItem {
   value: string;
   /** Whether this action was added within the past 7 days */
   isNew?: boolean;
+  /** Whether this category represents a plugin (renders 📦 instead of 📁) */
+  isPlugin?: boolean;
 }
 
 export type Screen =
@@ -99,4 +103,78 @@ export interface KadaiConfig {
   actionsDir?: string;
   /** Environment variables injected into all action processes */
   env?: Record<string, string>;
+  /** External plugin sources to load actions from */
+  plugins?: PluginSource[];
 }
+
+// ─── Plugin types ────────────────────────────────────────────────
+
+/** npm plugin source */
+export interface NpmPluginSource {
+  npm: string;
+  /**
+   * Semver version constraint
+   * @default "latest"
+   * @example "^1.2.0"
+   */
+  version?: string;
+}
+
+/** GitHub plugin source */
+export interface GithubPluginSource {
+  /**
+   * GitHub repo in "owner/repo" format
+   * @example "zdavison/kadai-shared"
+   */
+  github: string;
+  /**
+   * Branch, tag, or commit to pin to
+   * @default "main"
+   */
+  ref?: string;
+}
+
+/** Local path plugin source */
+export interface PathPluginSource {
+  /**
+   * Path to a directory containing an `actions/` folder.
+   * Relative paths are resolved relative to the `.kadai/` directory.
+   * @example "../shared-scripts"
+   * @example "/opt/company/kadai-ops"
+   */
+  path: string;
+}
+
+export type PluginSource =
+  | NpmPluginSource
+  | GithubPluginSource
+  | PathPluginSource;
+
+/** Metadata stored alongside cached plugin actions (not used for path plugins) */
+export interface PluginMeta {
+  /** ISO timestamp when the plugin was last fetched */
+  fetchedAt: string;
+  /** The original source config that produced this cache entry */
+  source: NpmPluginSource | GithubPluginSource;
+  /**
+   * Exact resolved version (npm semver) or commit SHA (github)
+   * @example "1.2.0"
+   * @example "a1b2c3d4e5f6"
+   */
+  resolvedVersion: string;
+}
+
+/** Identifies where an action came from */
+export interface ActionOrigin {
+  type: "local" | "plugin";
+  /**
+   * Display label for plugin actions
+   * @example "@zdavison/claude-tools"
+   * @example "~"
+   * @example "../shared"
+   */
+  pluginName?: string;
+}
+
+/** Per-plugin sync progress */
+export type PluginSyncStatus = "syncing" | "done" | "error";

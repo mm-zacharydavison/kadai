@@ -20,5 +20,6 @@ export async function loadConfig(kadaiDir: string): Promise<KadaiConfig> {
   return {
     actionsDir: userConfig.actionsDir ?? DEFAULT_CONFIG.actionsDir,
     env: userConfig.env ?? DEFAULT_CONFIG.env,
+    plugins: userConfig.plugins,
   };
 }

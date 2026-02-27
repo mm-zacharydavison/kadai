@@ -4,6 +4,7 @@ export type ParsedArgs =
   | { type: "list"; all: boolean }
   | { type: "run"; actionId: string }
   | { type: "mcp" }
+  | { type: "sync" }
   | { type: "error"; message: string };
 
 export function parseArgs(argv: string[]): ParsedArgs {
@@ -40,10 +41,13 @@ export function parseArgs(argv: string[]): ParsedArgs {
     case "mcp":
       return { type: "mcp" };
 
+    case "sync":
+      return { type: "sync" };
+
     default:
       return {
         type: "error",
-        message: `Unknown command: ${command}. Available commands: list, run, mcp, --version`,
+        message: `Unknown command: ${command}. Available commands: list, run, sync, mcp, --version`,
       };
   }
 }

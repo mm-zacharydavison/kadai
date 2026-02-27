@@ -8,14 +8,16 @@ import { useActions } from "./hooks/useActions.ts";
 import { useKeyboard } from "./hooks/useKeyboard.ts";
 import { useNavigation } from "./hooks/useNavigation.ts";
 import { useSearch } from "./hooks/useSearch.ts";
-import type { Action, MenuItem } from "./types.ts";
+import type { Action, MenuItem, PluginSyncStatus } from "./types.ts";
 
 function MenuList({
   items,
   selectedIndex,
+  pluginSyncStatuses,
 }: {
   items: MenuItem[];
   selectedIndex: number;
+  pluginSyncStatuses?: Map<string, PluginSyncStatus>;
 }) {
   const hasAnyNew = items.some((item) => item.isNew);
 
@@ -39,11 +41,16 @@ function MenuList({
             </Text>
             {hasAnyNew && <Text>{item.isNew ? "✨ " : "   "}</Text>}
             <Text color={selected ? "cyan" : undefined}>
-              {item.type === "category" ? "📁 " : ""}
+              {item.type === "category" ? (item.isPlugin ? "📦 " : "📁 ") : ""}
               {item.type === "action" && item.emoji ? `${item.emoji} ` : ""}
               {item.label}
               {item.type === "category" ? " ▸" : ""}
             </Text>
+            {item.type === "category" &&
+              item.isPlugin &&
+              pluginSyncStatuses?.get(item.value) === "syncing" && (
+                <Text dimColor> ⟳</Text>
+              )}
             {item.description && <Text dimColor> ({item.description})</Text>}
           </Box>
         );
@@ -68,9 +75,10 @@ export function App({ kadaiDir, onRunAction }: AppProps) {
 
   const search = useSearch();
   const nav = useNavigation({ onExit: exit, onNavigate: search.resetSearch });
-  const { actions, actionsRef, config, loading } = useActions({
-    kadaiDir,
-  });
+  const { actions, actionsRef, config, loading, pluginSyncStatuses } =
+    useActions({
+      kadaiDir,
+    });
 
   useKeyboard({
     stackRef: nav.stackRef,
@@ -127,6 +135,7 @@ export function App({ kadaiDir, onRunAction }: AppProps) {
           <MenuList
             items={filteredItems}
             selectedIndex={search.selectedIndex}
+            pluginSyncStatuses={pluginSyncStatuses}
           />
         )}
         <StatusBar />
@@ -201,6 +210,14 @@ export function buildMenuItems(actions: Action[], path: string[]): MenuItem[] {
   const items: MenuItem[] = [];
   const newActionIds = new Set<string>();
 
+  // Build the set of plugin category names
+  const pluginCategories = new Set<string>();
+  for (const action of actions) {
+    if (action.origin.type === "plugin" && action.category.length > 0) {
+      pluginCategories.add(action.category[0] as string);
+    }
+  }
+
   // Build a set of recently-added action IDs for this menu level
   for (const action of actions) {
     if (isRecentlyAdded(action)) {
@@ -219,6 +236,7 @@ export function buildMenuItems(actions: Action[], path: string[]): MenuItem[] {
             type: "category",
             label: topCategory,
             value: topCategory,
+            isPlugin: pluginCategories.has(topCategory),
           });
         }
       } else {
@@ -261,8 +279,18 @@ export function buildMenuItems(actions: Action[], path: string[]): MenuItem[] {
   }
 
   items.sort((a, b) => {
-    // Categories first
+    // Sort order: plugin categories → local categories → actions
     if (a.type !== b.type) return a.type === "category" ? -1 : 1;
+    if (a.type === "category" && b.type === "category") {
+      const aPlugin = a.isPlugin ?? false;
+      const bPlugin = b.isPlugin ?? false;
+      if (aPlugin !== bPlugin) return aPlugin ? -1 : 1;
+      // Within plugins, "~" (user-global) sorts first
+      if (aPlugin && bPlugin) {
+        if (a.value === "~") return -1;
+        if (b.value === "~") return 1;
+      }
+    }
     return a.label.localeCompare(b.label);
   });
 
