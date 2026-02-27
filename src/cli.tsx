@@ -1,4 +1,10 @@
 #!/usr/bin/env bun
+import { registerSharedDeps } from "./core/shared-deps.ts";
+
+// Ensure ink/react/etc resolve to kadai's own copies when actions import them.
+// Must run before any dynamic import() of .tsx action files.
+registerSharedDeps();
+
 import { parseArgs } from "./core/args.ts";
 import { handleList, handleRun } from "./core/commands.ts";
 import { findZcliDir } from "./core/loader.ts";

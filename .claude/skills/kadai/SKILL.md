@@ -10,14 +10,12 @@ user-invocable: false
 
 kadai manages and runs project-specific shell scripts stored in `.kadai/actions/`.
 
-**Important**: Always invoke kadai via `bunx kadai` or `npx kadai` since it is typically not installed globally. Prefer `bunx` if available, fall back to `npx`.
+**Important**: Always invoke kadai via `bunx kadai` since it is typically not installed globally. kadai requires Bun as its runtime.
 
 ## Discovering Actions
 
 ```bash
 bunx kadai list --json
-# or
-npx kadai list --json
 ```
 
 Returns a JSON array of available actions:
@@ -36,16 +34,14 @@ Returns a JSON array of available actions:
 ]
 ```
 
-Use `--all` to include hidden actions: `bunx kadai list --json --all` (or `npx kadai list --json --all`)
+Use `--all` to include hidden actions: `bunx kadai list --json --all`
 
-Always use `kadai list --json` (via `bunx` or `npx`) for the current set of actions — do not hardcode action lists.
+Always use `kadai list --json` (via `bunx`) for the current set of actions — do not hardcode action lists.
 
 ## Running Actions
 
 ```bash
 bunx kadai run <action-id>
-# or
-npx kadai run <action-id>
 ```
 
 Runs the action and streams stdout/stderr directly. The process exits with the action's exit code.
@@ -56,7 +52,4 @@ Confirmation prompts are automatically skipped in non-TTY environments.
 ```bash
 bunx kadai run hello
 bunx kadai run database/reset
-# or with npx
-npx kadai run hello
-npx kadai run database/reset
 ```

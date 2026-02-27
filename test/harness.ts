@@ -1,7 +1,12 @@
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 const PROJECT_ROOT = join(import.meta.dir, "..");
 const CLI_ENTRY = join(PROJECT_ROOT, "src", "cli.tsx");
+
+// Isolated HOME so tests never pick up the real ~/.kadai/actions/
+const TEST_HOME = mkdtempSync(join(tmpdir(), "kadai-test-home-"));
 
 /**
  * Strip ANSI escape codes from a string so we can assert on plain text.
@@ -76,6 +81,7 @@ export function spawnCLI(options: {
     env: {
       ...process.env,
       ...env,
+      HOME: TEST_HOME,
       NO_COLOR: "1",
       FORCE_COLOR: "0",
     },
@@ -122,6 +128,8 @@ export function spawnCLI(options: {
         if (exitCode !== null) {
           await readStdout;
           await readStderr;
+          // Re-check after draining — data may have arrived with the exit
+          if (stripAnsi(output).includes(text)) return;
           throw new Error(
             `Process exited (code ${exitCode}) without producing "${text}"\n` +
               `--- stdout ---\n${stripAnsi(output)}\n` +

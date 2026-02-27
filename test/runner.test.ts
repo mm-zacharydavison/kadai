@@ -99,8 +99,9 @@ describe("script execution", () => {
     cli.type("Greeter");
     cli.press(Keys.ENTER);
     await cli.waitForText("What is your name?");
-    cli.type("World");
-    cli.press(Keys.ENTER);
+    // Send text + newline (not \r) — bash's `read` needs \n to terminate
+    // in a pipe since there's no TTY line discipline to translate \r → \n.
+    cli.type("World\n");
     await cli.waitForText("Hello, World!");
   });
 

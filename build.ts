@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import type { BunPlugin } from "bun";
 import { $ } from "bun";
+import { SHARED_DEPS } from "./src/core/shared-deps.ts";
 
 const stubDevtools: BunPlugin = {
   name: "stub-devtools",
@@ -16,15 +17,14 @@ const stubDevtools: BunPlugin = {
   },
 };
 
-// React, Ink, and related packages must stay external so that dynamically
+// Shared UI deps (SHARED_DEPS) must stay external so that dynamically
 // imported .tsx actions resolve the same module instances at runtime.
 // Bundling them would create a second React copy, breaking hooks.
+// MCP SDK is external for similar reasons (uses Node APIs that don't bundle).
 const external = [
-  "react",
+  ...SHARED_DEPS,
   "react/jsx-runtime",
   "react/jsx-dev-runtime",
-  "ink",
-  "@inkjs/ui",
   "@modelcontextprotocol/sdk",
   "@modelcontextprotocol/sdk/server/mcp.js",
   "@modelcontextprotocol/sdk/server/stdio.js",

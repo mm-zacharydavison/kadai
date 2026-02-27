@@ -7,12 +7,25 @@
 3. Share them with your team in the repo.
 4. Automatically make them discoverable by AI.
 
+## Prerequisites
+
+kadai requires [Bun](https://bun.sh) as its runtime.
+
+```bash
+# macOS / Linux
+curl -fsSL https://bun.sh/install | bash
+
+# Homebrew
+brew install oven-sh/bun/bun
+
+# Windows
+powershell -c "irm bun.sh/install.ps1 | iex"
+```
+
 ## Getting Started
 
 ```bash
 bunx kadai
-# OR
-npx kadai
 ```
 
 On first run, kadai creates a `.kadai/` directory with a sample action and config file. Run it again to open the interactive menu.

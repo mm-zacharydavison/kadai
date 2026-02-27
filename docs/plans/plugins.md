@@ -90,7 +90,7 @@ Plugins can declare dependencies in a `package.json` at the plugin root. After f
 
 #### Package Manager Resolution
 
-kadai can't assume Bun is available — users may run kadai via `npx`. The package manager used for `install` is resolved with a three-tier strategy, following the same pattern as `runner.ts`'s runtime chains:
+kadai requires Bun as its runtime, but plugins may be authored in projects that use a different package manager. The package manager used for `install` is resolved with a three-tier strategy, following the same pattern as `runner.ts`'s runtime chains:
 
 **1. Respect `packageManager` field** — If the plugin's `package.json` declares `"packageManager": "pnpm@9.1.0"` (the [corepack convention](https://nodejs.org/api/corepack.html)), use that.
 
