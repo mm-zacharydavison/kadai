@@ -51,6 +51,14 @@ describe("parseArgs", () => {
     expect(parseArgs(["mcp"])).toEqual({ type: "mcp" });
   });
 
+  test("--version → version", () => {
+    expect(parseArgs(["--version"])).toEqual({ type: "version" });
+  });
+
+  test("-v → version", () => {
+    expect(parseArgs(["-v"])).toEqual({ type: "version" });
+  });
+
   test("unknown command → error", () => {
     const result = parseArgs(["foobar"]);
     expect(result.type).toBe("error");

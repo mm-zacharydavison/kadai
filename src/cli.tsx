@@ -11,6 +11,12 @@ if (parsed.type === "error") {
   process.exit(1);
 }
 
+if (parsed.type === "version") {
+  const { version } = await import("../package.json");
+  console.log(version);
+  process.exit(0);
+}
+
 if (parsed.type === "mcp") {
   const { ensureMcpConfig, startMcpServer } = await import("./core/mcp.ts");
   const kadaiDir = findZcliDir(cwd);

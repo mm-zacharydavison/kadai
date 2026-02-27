@@ -1,5 +1,6 @@
 export type ParsedArgs =
   | { type: "interactive" }
+  | { type: "version" }
   | { type: "list"; all: boolean }
   | { type: "run"; actionId: string }
   | { type: "mcp" }
@@ -11,6 +12,10 @@ export function parseArgs(argv: string[]): ParsedArgs {
   }
 
   const command = argv[0];
+
+  if (command === "--version" || command === "-v") {
+    return { type: "version" };
+  }
 
   switch (command) {
     case "list": {
@@ -38,7 +43,7 @@ export function parseArgs(argv: string[]): ParsedArgs {
     default:
       return {
         type: "error",
-        message: `Unknown command: ${command}. Available commands: list, run, mcp`,
+        message: `Unknown command: ${command}. Available commands: list, run, mcp, --version`,
       };
   }
 }
