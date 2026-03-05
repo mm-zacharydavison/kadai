@@ -53,21 +53,54 @@ echo "Add your own scripts to .kadai/actions/ to get started."
   const configPath = join(kadaiDir, "config.ts");
   await Bun.write(configPath, configContent);
 
-  // Claude Code skill file — only if the repo uses Claude Code
-  let skillCreated = false;
-  const hasClaudeDir = existsSync(join(cwd, ".claude"));
-  const hasClaudeMd = existsSync(join(cwd, "CLAUDE.md"));
-  if (hasClaudeDir || hasClaudeMd) {
-    const skillDir = join(cwd, ".claude", "skills", "kadai");
-    const skillPath = join(skillDir, "SKILL.md");
-    if (!(await Bun.file(skillPath).exists())) {
-      mkdirSync(skillDir, { recursive: true });
-      await Bun.write(skillPath, generateSkillFile());
-      skillCreated = true;
-    }
+  // Claude Code integration files
+  const integration = await ensureClaudeIntegration(cwd);
+
+  return { sampleCreated, skillCreated: integration.skillCreated };
+}
+
+// ─── Ensure Claude Code integration ──────────────────────────────
+
+export interface EnsureResult {
+  skillCreated: boolean;
+  mcpConfigured: boolean;
+}
+
+/**
+ * Ensure Claude Code skill file and MCP config exist if the project
+ * uses Claude Code (has .claude dir or CLAUDE.md). Safe to call
+ * repeatedly — skips files that already exist.
+ */
+export async function ensureClaudeIntegration(
+  projectRoot: string,
+): Promise<EnsureResult> {
+  const hasClaudeDir = existsSync(join(projectRoot, ".claude"));
+  const hasClaudeMd = existsSync(join(projectRoot, "CLAUDE.md"));
+
+  if (!hasClaudeDir && !hasClaudeMd) {
+    return { skillCreated: false, mcpConfigured: false };
   }
 
-  return { sampleCreated, skillCreated };
+  const skillCreated = await ensureSkillFile(projectRoot);
+  const mcpConfigured = await ensureMcpJsonEntry(projectRoot);
+
+  return { skillCreated, mcpConfigured };
+}
+
+async function ensureSkillFile(projectRoot: string): Promise<boolean> {
+  const skillDir = join(projectRoot, ".claude", "skills", "kadai");
+  const skillPath = join(skillDir, "SKILL.md");
+  if (await Bun.file(skillPath).exists()) {
+    return false;
+  }
+  mkdirSync(skillDir, { recursive: true });
+  await Bun.write(skillPath, generateSkillFile());
+  return true;
+}
+
+async function ensureMcpJsonEntry(projectRoot: string): Promise<boolean> {
+  const { ensureMcpConfig } = await import("./mcp.ts");
+  return await ensureMcpConfig(projectRoot);
 }
 
 function generateSkillFile(): string {

@@ -44,6 +44,12 @@ if (parsed.type === "list" || parsed.type === "run" || parsed.type === "sync") {
     );
     process.exit(1);
   }
+
+  // Ensure Claude Code integration files exist on every run
+  const { dirname } = await import("node:path");
+  const { ensureClaudeIntegration } = await import("./core/init-wizard.ts");
+  await ensureClaudeIntegration(dirname(kadaiDir));
+
   if (parsed.type === "list") {
     await handleList({ kadaiDir, all: parsed.all });
   } else if (parsed.type === "run") {
@@ -77,10 +83,19 @@ if (!kadaiDir) {
   const result = await writeInitFiles(cwd);
   console.log("  Created .kadai/config.ts");
   if (result.sampleCreated) console.log("  Created .kadai/actions/hello.sh");
-  if (result.skillCreated)
-    console.log("  Created .claude/skills/kadai/SKILL.md");
   console.log("\nDone! Run kadai again to get started.");
   process.exit(0);
+}
+
+// Ensure Claude Code integration files exist on every run
+{
+  const { dirname } = await import("node:path");
+  const { ensureClaudeIntegration } = await import("./core/init-wizard.ts");
+  const projectRoot = dirname(kadaiDir);
+  const ensured = await ensureClaudeIntegration(projectRoot);
+  if (ensured.skillCreated)
+    console.log("Created .claude/skills/kadai/SKILL.md");
+  if (ensured.mcpConfigured) console.log("Configured kadai in .mcp.json");
 }
 
 function createStdinStream(): NodeJS.ReadStream {

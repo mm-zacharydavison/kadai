@@ -65,8 +65,9 @@ interface McpJsonConfig {
 /**
  * Ensure `.mcp.json` at the project root has a `kadai` entry.
  * Creates the file if missing, merges into existing if kadai entry absent.
+ * @returns `true` if the file was created or modified, `false` if already configured.
  */
-export async function ensureMcpConfig(projectRoot: string): Promise<void> {
+export async function ensureMcpConfig(projectRoot: string): Promise<boolean> {
   const mcpJsonPath = join(projectRoot, ".mcp.json");
   const mcpFile = Bun.file(mcpJsonPath);
 
@@ -76,25 +77,22 @@ export async function ensureMcpConfig(projectRoot: string): Promise<void> {
     const existing: McpJsonConfig = await mcpFile.json();
 
     if (existing.mcpServers?.kadai) {
-      process.stderr.write(
-        "kadai MCP server already configured in .mcp.json\n",
-      );
-      return;
+      return false;
     }
 
     existing.mcpServers = existing.mcpServers ?? {};
     existing.mcpServers.kadai = kadaiEntry;
     await Bun.write(mcpJsonPath, `${JSON.stringify(existing, null, 2)}\n`);
-    process.stderr.write("Added kadai entry to existing .mcp.json\n");
-  } else {
-    const config: McpJsonConfig = {
-      mcpServers: {
-        kadai: kadaiEntry,
-      },
-    };
-    await Bun.write(mcpJsonPath, `${JSON.stringify(config, null, 2)}\n`);
-    process.stderr.write("Created .mcp.json with kadai MCP server config\n");
+    return true;
   }
+
+  const config: McpJsonConfig = {
+    mcpServers: {
+      kadai: kadaiEntry,
+    },
+  };
+  await Bun.write(mcpJsonPath, `${JSON.stringify(config, null, 2)}\n`);
+  return true;
 }
 
 /**
