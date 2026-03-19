@@ -48,12 +48,6 @@ echo "Add your own scripts to .kadai/actions/ to get started."
     sampleCreated = true;
   }
 
-  // .gitignore for transient state files
-  const gitignorePath = join(kadaiDir, ".gitignore");
-  if (!(await Bun.file(gitignorePath).exists())) {
-    await Bun.write(gitignorePath, ".last-action\n");
-  }
-
   // Config file
   const configContent = generateConfigFile();
   const configPath = join(kadaiDir, "config.ts");

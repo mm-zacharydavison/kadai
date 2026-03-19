@@ -7,6 +7,23 @@ export async function saveLastAction(
   actionId: string,
 ): Promise<void> {
   await Bun.write(join(kadaiDir, LAST_ACTION_FILE), actionId);
+  await ensureGitignore(kadaiDir);
+}
+
+async function ensureGitignore(kadaiDir: string): Promise<void> {
+  const gitignorePath = join(kadaiDir, ".gitignore");
+  const file = Bun.file(gitignorePath);
+
+  if (await file.exists()) {
+    const content = await file.text();
+    const lines = content.split("\n").map((l) => l.trim());
+    if (!lines.includes(LAST_ACTION_FILE)) {
+      const suffix = content.endsWith("\n") ? "" : "\n";
+      await Bun.write(gitignorePath, `${content}${suffix}${LAST_ACTION_FILE}\n`);
+    }
+  } else {
+    await Bun.write(gitignorePath, `${LAST_ACTION_FILE}\n`);
+  }
 }
 
 export async function loadLastAction(
