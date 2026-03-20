@@ -1,14 +1,16 @@
 import { ConfirmInput } from "@inkjs/ui";
 import { Box, Text, useApp } from "ink";
+import { useRef } from "react";
 import { Breadcrumbs } from "./components/Breadcrumbs.tsx";
 import { FullscreenProvider } from "./components/FullscreenProvider.tsx";
+import { InputForm } from "./components/InputForm.tsx";
 import { InkActionRenderer } from "./components/InkActionRenderer.tsx";
 import { StatusBar } from "./components/StatusBar.tsx";
 import { useActions } from "./hooks/useActions.ts";
 import { useKeyboard } from "./hooks/useKeyboard.ts";
 import { useNavigation } from "./hooks/useNavigation.ts";
 import { useSearch } from "./hooks/useSearch.ts";
-import type { Action, MenuItem, PluginSyncStatus } from "./types.ts";
+import type { Action, InputValues, MenuItem, PluginSyncStatus } from "./types.ts";
 
 function MenuList({
   items,
@@ -63,14 +65,16 @@ function MenuList({
 interface AppProps {
   kadaiDir: string;
   /** Called when an action is selected to run with inherited stdio */
-  onRunAction: (action: Action) => void;
+  onRunAction: (action: Action, inputs: InputValues) => void;
 }
 
 export function App({ kadaiDir, onRunAction }: AppProps) {
   const { exit } = useApp();
+  // Stores inputs collected by InputForm, threaded into confirm → run
+  const pendingInputsRef = useRef<InputValues>({});
 
   const handleRunAction = (action: Action) => {
-    onRunAction(action);
+    onRunAction(action, pendingInputsRef.current);
     exit();
   };
 
@@ -141,6 +145,31 @@ export function App({ kadaiDir, onRunAction }: AppProps) {
         )}
         <StatusBar />
       </Box>
+    );
+  }
+
+  if (nav.currentScreen.type === "input-form") {
+    const { actionId } = nav.currentScreen;
+    const action = actions.find((a) => a.id === actionId);
+    if (!action || !action.meta.inputs?.length) return <Text color="red">Action not found</Text>;
+
+    const handleInputsComplete = (values: InputValues) => {
+      pendingInputsRef.current = values;
+      if (action.meta.confirm) {
+        nav.pushScreen({ type: "confirm", actionId });
+      } else if (action.runtime === "ink") {
+        nav.pushScreen({ type: "ink-component", actionId });
+      } else {
+        handleRunAction(action);
+      }
+    };
+
+    return (
+      <InputForm
+        inputs={action.meta.inputs}
+        onComplete={handleInputsComplete}
+        onCancel={() => nav.popScreen()}
+      />
     );
   }
 

@@ -3,6 +3,7 @@ import { loadConfig } from "./config.ts";
 import { enterFullscreen } from "./fullscreen.ts";
 import { loadActions } from "./loader.ts";
 import { saveLastAction, loadLastAction } from "./last-action.ts";
+import { buildInjection, buildStdinStream, filterSensitiveInputs } from "./inputs.ts";
 import { ensureKadaiResolvable } from "./shared-deps.ts";
 import {
   loadCachedPlugins,
@@ -11,6 +12,7 @@ import {
   syncPlugins,
 } from "./plugins.ts";
 import { resolveCommand } from "./runner.ts";
+import type { InputValues } from "../types.ts";
 
 interface ListOptions {
   kadaiDir: string;
@@ -21,6 +23,7 @@ interface RunOptions {
   kadaiDir: string;
   actionId: string;
   cwd: string;
+  inputs?: InputValues;
 }
 
 export async function handleList(options: ListOptions): Promise<never> {
@@ -63,7 +66,7 @@ export async function handleList(options: ListOptions): Promise<never> {
 }
 
 export async function handleRun(options: RunOptions): Promise<never> {
-  const { kadaiDir, actionId, cwd } = options;
+  const { kadaiDir, actionId, cwd, inputs = {} } = options;
   const config = await loadConfig(kadaiDir);
   const actionsDir = join(kadaiDir, config.actionsDir ?? "actions");
 
@@ -89,7 +92,7 @@ export async function handleRun(options: RunOptions): Promise<never> {
     process.exit(1);
   }
 
-  await saveLastAction(kadaiDir, actionId);
+  await saveLastAction(kadaiDir, actionId, filterSensitiveInputs(action.meta.inputs ?? [], inputs));
 
   if (action.runtime === "ink") {
     // Ensure "kadai/ink", "kadai/react", etc. resolve from the project
@@ -124,9 +127,11 @@ export async function handleRun(options: RunOptions): Promise<never> {
   }
 
   const cmd = resolveCommand(action);
+  const injection = buildInjection(action.meta.inputs ?? [], inputs);
   const env: Record<string, string> = {
     ...(process.env as Record<string, string>),
     ...(config.env ?? {}),
+    ...injection.env,
   };
 
   // Clean up stdin so the child process gets direct terminal access.
@@ -142,7 +147,7 @@ export async function handleRun(options: RunOptions): Promise<never> {
     cwd,
     stdout: "inherit",
     stderr: "inherit",
-    stdin: "inherit",
+    stdin: injection.stdinPreamble ? buildStdinStream(injection.stdinPreamble) : "inherit",
     env,
   });
 
@@ -157,14 +162,14 @@ interface RerunOptions {
 
 export async function handleRerun(options: RerunOptions): Promise<never> {
   const { kadaiDir, cwd } = options;
-  const actionId = await loadLastAction(kadaiDir);
-  if (!actionId) {
+  const record = await loadLastAction(kadaiDir);
+  if (!record) {
     process.stderr.write(
       "No last action found. Run an action first before using --rerun.\n",
     );
     process.exit(1);
   }
-  return handleRun({ kadaiDir, actionId, cwd });
+  return handleRun({ kadaiDir, actionId: record.actionId, cwd, inputs: record.inputs });
 }
 
 interface SyncOptions {

@@ -1,9 +1,11 @@
 import { join, resolve } from "node:path";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import type { Action, KadaiConfig } from "../types.ts";
+import { z } from "zod";
+import type { Action, ActionInput, InputValues, KadaiConfig } from "../types.ts";
 import { loadConfig } from "./config.ts";
 import { loadActions } from "./loader.ts";
+import { buildInjection, buildStdinStream } from "./inputs.ts";
 import {
   loadCachedPlugins,
   loadPathPlugin,
@@ -95,6 +97,64 @@ export async function ensureMcpConfig(projectRoot: string): Promise<boolean> {
   return true;
 }
 
+function buildZodShape(inputs: ActionInput[]): Record<string, z.ZodTypeAny> {
+  const shape: Record<string, z.ZodTypeAny> = {};
+  for (const input of inputs) {
+    let schema: z.ZodTypeAny;
+    switch (input.type) {
+      case "boolean":
+        schema = z.boolean();
+        break;
+      case "number":
+        schema = z.number();
+        break;
+      default:
+        schema = z.string();
+    }
+    schema = schema.describe(input.prompt);
+    if (!input.required) schema = schema.optional();
+    shape[input.name] = schema;
+  }
+  return shape;
+}
+
+async function runAction(
+  action: Action,
+  values: InputValues,
+  env: Record<string, string>,
+  cwd: string,
+) {
+  const cmd = resolveCommand(action);
+  const injection = buildInjection(action.meta.inputs ?? [], values);
+  const actionEnv = { ...env, ...injection.env };
+
+  const proc = Bun.spawn(cmd, {
+    cwd,
+    stdout: "pipe",
+    stderr: "pipe",
+    stdin: injection.stdinPreamble ? buildStdinStream(injection.stdinPreamble) : "ignore",
+    env: actionEnv,
+  });
+
+  const [stdout, stderr] = await Promise.all([
+    new Response(proc.stdout).text(),
+    new Response(proc.stderr).text(),
+  ]);
+  const exitCode = await proc.exited;
+
+  const parts: string[] = [];
+  if (stdout) parts.push(stdout);
+  if (stderr) parts.push(`[stderr]\n${stderr}`);
+  if (exitCode !== 0) parts.push(`[exit code: ${exitCode}]`);
+
+  return {
+    content: [
+      { type: "text" as const, text: parts.join("\n") || "(no output)" },
+    ],
+    isError: exitCode !== 0,
+  };
+}
+
 /**
  * Start the MCP stdio server, registering each non-hidden action as a tool.
  * If kadaiDir is null (no .kadai/ found), the server starts with zero tools.
@@ -140,35 +200,16 @@ export async function startMcpServer(
     const toolName = actionIdToToolName(action.id);
     const description = buildToolDescription(action);
 
-    server.registerTool(toolName, { description }, async () => {
-      const cmd = resolveCommand(action);
-
-      const proc = Bun.spawn(cmd, {
-        cwd,
-        stdout: "pipe",
-        stderr: "pipe",
-        stdin: "ignore",
-        env,
+    if (action.meta.inputs?.length) {
+      const inputShape = buildZodShape(action.meta.inputs);
+      server.registerTool(toolName, { description, inputSchema: inputShape }, async (args) => {
+        return runAction(action, args as InputValues, env, cwd);
       });
-
-      const [stdout, stderr] = await Promise.all([
-        new Response(proc.stdout).text(),
-        new Response(proc.stderr).text(),
-      ]);
-      const exitCode = await proc.exited;
-
-      const parts: string[] = [];
-      if (stdout) parts.push(stdout);
-      if (stderr) parts.push(`[stderr]\n${stderr}`);
-      if (exitCode !== 0) parts.push(`[exit code: ${exitCode}]`);
-
-      return {
-        content: [
-          { type: "text" as const, text: parts.join("\n") || "(no output)" },
-        ],
-        isError: exitCode !== 0,
-      };
-    });
+    } else {
+      server.registerTool(toolName, { description }, async () => {
+        return runAction(action, {}, env, cwd);
+      });
+    }
   }
 
   const transport = new StdioServerTransport();

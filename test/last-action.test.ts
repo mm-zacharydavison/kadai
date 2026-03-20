@@ -17,12 +17,27 @@ function makeTmpKadai(): { kadaiDir: string; cleanup: () => void } {
 }
 
 describe("saveLastAction", () => {
-  test("writes action id to .last-action", async () => {
+  test("writes action id and inputs as JSON to .last-action", async () => {
+    const { kadaiDir, cleanup } = makeTmpKadai();
+    try {
+      await saveLastAction(kadaiDir, "hello", { name: "world" });
+      const raw = readFileSync(join(kadaiDir, ".last-action"), "utf8");
+      const parsed = JSON.parse(raw);
+      expect(parsed.actionId).toBe("hello");
+      expect(parsed.inputs).toEqual({ name: "world" });
+    } finally {
+      cleanup();
+    }
+  });
+
+  test("saves empty inputs when not provided", async () => {
     const { kadaiDir, cleanup } = makeTmpKadai();
     try {
       await saveLastAction(kadaiDir, "hello");
-      const content = readFileSync(join(kadaiDir, ".last-action"), "utf8").trim();
-      expect(content).toBe("hello");
+      const raw = readFileSync(join(kadaiDir, ".last-action"), "utf8");
+      const parsed = JSON.parse(raw);
+      expect(parsed.actionId).toBe("hello");
+      expect(parsed.inputs).toEqual({});
     } finally {
       cleanup();
     }
@@ -39,11 +54,28 @@ describe("loadLastAction", () => {
     }
   });
 
-  test("returns action id from .last-action", async () => {
+  test("returns record from JSON .last-action", async () => {
+    const { kadaiDir, cleanup } = makeTmpKadai();
+    try {
+      await Bun.write(
+        join(kadaiDir, ".last-action"),
+        JSON.stringify({ actionId: "database/reset", inputs: { db: "mydb" } }),
+      );
+      const record = await loadLastAction(kadaiDir);
+      expect(record?.actionId).toBe("database/reset");
+      expect(record?.inputs).toEqual({ db: "mydb" });
+    } finally {
+      cleanup();
+    }
+  });
+
+  test("backward compat: reads plain-text action id", async () => {
     const { kadaiDir, cleanup } = makeTmpKadai();
     try {
       await Bun.write(join(kadaiDir, ".last-action"), "database/reset");
-      expect(await loadLastAction(kadaiDir)).toBe("database/reset");
+      const record = await loadLastAction(kadaiDir);
+      expect(record?.actionId).toBe("database/reset");
+      expect(record?.inputs).toEqual({});
     } finally {
       cleanup();
     }

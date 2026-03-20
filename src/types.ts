@@ -1,3 +1,25 @@
+export interface ActionInput {
+  /** Variable name used for env var injection and .last-action storage */
+  name: string;
+  /** Value type — determines UI widget and MCP schema type */
+  type: "string" | "boolean" | "number";
+  /** Prompt text shown to the user */
+  prompt: string;
+  /** Whether the input must be provided (false when declared with '?') */
+  required: boolean;
+  /** Whether to mask input display and skip saving to .last-action */
+  sensitive?: boolean;
+}
+
+/** Collected input values keyed by input name */
+export type InputValues = Record<string, string | boolean | number>;
+
+/** JSON format stored in .last-action */
+export interface LastActionRecord {
+  actionId: string;
+  inputs: InputValues;
+}
+
 export interface ActionMeta {
   /** Display name shown in menus */
   name: string;
@@ -20,6 +42,10 @@ export interface ActionMeta {
    * @default false
    */
   fullscreen?: boolean;
+  /**
+   * Declared inputs collected before running and injected as env vars + stdin
+   */
+  inputs?: ActionInput[];
 }
 
 export interface Action {
@@ -79,6 +105,8 @@ export interface MenuItem {
 export type Screen =
   /** Menu listing actions/categories at a given path */
   | { type: "menu"; path: string[] }
+  /** Input collection form before running an action */
+  | { type: "input-form"; actionId: string }
   /** Confirmation prompt before running an action */
   | { type: "confirm"; actionId: string }
   /** In-process Ink component rendered within kadai */

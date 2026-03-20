@@ -70,8 +70,9 @@ const { App } = await import("./app.tsx");
 const { resolveCommand } = await import("./core/runner.ts");
 const { loadConfig } = await import("./core/config.ts");
 
-import type { Action } from "./types.ts";
+import type { Action, InputValues } from "./types.ts";
 import { saveLastAction } from "./core/last-action.ts";
+import { buildInjection, buildStdinStream, filterSensitiveInputs } from "./core/inputs.ts";
 
 const kadaiDir = findZcliDir(cwd);
 if (!kadaiDir) {
@@ -201,14 +202,16 @@ function createStdinStream(): NodeJS.ReadStream {
 }
 
 let selectedAction: Action | null = null;
+let selectedInputValues: InputValues = {};
 
 const stdinStream = createStdinStream();
 
 const instance = render(
   React.createElement(App, {
     kadaiDir,
-    onRunAction: (action: Action) => {
+    onRunAction: (action: Action, inputs: InputValues) => {
       selectedAction = action;
+      selectedInputValues = inputs;
     },
   }),
   {
@@ -224,12 +227,14 @@ if (!selectedAction) process.exit(0);
 
 // Run the selected action, replacing the kadai process
 const action: Action = selectedAction;
-await saveLastAction(kadaiDir, action.id);
+await saveLastAction(kadaiDir, action.id, filterSensitiveInputs(action.meta.inputs ?? [], selectedInputValues));
 const config = await loadConfig(kadaiDir);
 const cmd = resolveCommand(action);
+const injection = buildInjection(action.meta.inputs ?? [], selectedInputValues);
 const env: Record<string, string> = {
   ...(process.env as Record<string, string>),
   ...(config.env ?? {}),
+  ...injection.env,
 };
 
 console.log(
@@ -252,7 +257,7 @@ const proc = Bun.spawn(cmd, {
   cwd,
   stdout: "inherit",
   stderr: "inherit",
-  stdin: "inherit",
+  stdin: injection.stdinPreamble ? buildStdinStream(injection.stdinPreamble) : "inherit",
   env,
 });
 
