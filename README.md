@@ -84,6 +84,55 @@ For JS/TS, use `//` comments:
 | `confirm`     | boolean | Require confirmation before running        |
 | `hidden`      | boolean | Hide from menu (still runnable via CLI)    |
 | `fullscreen`  | boolean | Use alternate screen buffer (`.tsx` only)  |
+| `input`       | —       | Declare an input (see below)               |
+
+### Inputs
+
+Actions can declare inputs that are collected before running — as a form in the interactive menu, as MCP tool parameters, and replayed by `--rerun`.
+
+Often, actions will be interactive and take input from the user.
+You can declare these inputs in `kadai` frontmatter, which allows your actions to be invoked programatically (e.g. by scripts, AI agents, etc.)
+
+```bash
+# kadai:input <name>[?] <type> "<prompt>" [sensitive]
+```
+
+- `name` — variable name used for env var injection and storage
+- `?` suffix — marks the input as optional (required by default)
+- `type` — `string`, `boolean`, or `number`
+- `prompt` — text shown to the user
+- `sensitive` — masks input display and excludes the value from `.last-action` (not replayed by `--rerun`)
+
+```bash
+#!/bin/bash
+# kadai:name Reset Database
+# kadai:input database_name string "Which database?"
+# kadai:input confirm? boolean "Are you sure?"
+# kadai:input db_password string "Database password?" sensitive
+
+echo "Resetting ${KADAI_INPUT_DATABASE_NAME}..."
+```
+
+Each declared input is injected two ways when the action runs:
+
+1. **Env var** — `KADAI_INPUT_<NAME>` (e.g. `KADAI_INPUT_DATABASE_NAME=mydb`)
+2. **Stdin** — values are prepended to stdin in declaration order, so `read`/`input()`/`gets` receive them automatically without any code changes
+
+This means you can write interactive scripts as normal and they'll just work with pre-filled values:
+
+```bash
+# Without any changes, read() gets the collected value from stdin:
+read -p "Which database? " DB_NAME
+echo "Resetting $DB_NAME..."
+```
+
+Or explicitly reference the env var:
+
+```bash
+echo "Resetting ${KADAI_INPUT_DATABASE_NAME}..."
+```
+
+Both approaches work in all supported runtimes (bash, Python, TypeScript, etc.).
 
 ### Ink TUI Actions
 
@@ -157,6 +206,7 @@ kadai                    # Interactive menu
 kadai list --json        # List actions as JSON
 kadai list --json --all  # Include hidden actions
 kadai run <action-id>    # Run an action directly
+kadai --rerun            # Re-run last action (last inputs are replayed)
 kadai mcp                # Start MCP server (creates .mcp.json)
 ```
 

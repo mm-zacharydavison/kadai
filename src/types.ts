@@ -1,3 +1,23 @@
+export interface ActionInput {
+  /** Variable name used for env var injection and .last-action storage */
+  name: string;
+  /** Value type — determines replay conversion and MCP schema type */
+  type: "string" | "boolean" | "number";
+  /** Whether the input must be provided (false when declared with '?') */
+  required: boolean;
+  /** Whether to skip saving this input to .last-action */
+  sensitive?: boolean;
+}
+
+/** Collected input values keyed by input name */
+export type InputValues = Record<string, string | boolean | number>;
+
+/** JSON format stored in .last-action */
+export interface LastActionRecord {
+  actionId: string;
+  inputs: InputValues;
+}
+
 export interface ActionMeta {
   /** Display name shown in menus */
   name: string;
@@ -20,6 +40,11 @@ export interface ActionMeta {
    * @default false
    */
   fullscreen?: boolean;
+  /**
+   * Declared inputs recorded from stdin during run, replayed on --rerun.
+   * Only used for naming inputs (for env var injection on replay) and marking sensitive ones.
+   */
+  inputs?: ActionInput[];
 }
 
 export interface Action {

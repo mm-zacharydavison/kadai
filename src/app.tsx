@@ -62,7 +62,7 @@ function MenuList({
 
 interface AppProps {
   kadaiDir: string;
-  /** Called when an action is selected to run with inherited stdio */
+  /** Called when an action is selected to run */
   onRunAction: (action: Action) => void;
 }
 

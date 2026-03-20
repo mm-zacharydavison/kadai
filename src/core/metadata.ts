@@ -33,6 +33,21 @@ function parseMetadataFromContent(content: string): Partial<ActionMeta> {
       case "fullscreen":
         meta.fullscreen = value.trim() === "true";
         break;
+      case "input": {
+        const inputMatch = value.match(
+          /^(\w+?)(\?)?\s+(string|boolean|number)(?:\s+"[^"]*")?(\s+sensitive)?$/,
+        );
+        if (inputMatch) {
+          meta.inputs ??= [];
+          meta.inputs.push({
+            name: inputMatch[1] as string,
+            required: !inputMatch[2],
+            type: inputMatch[3] as "string" | "boolean" | "number",
+            sensitive: !!inputMatch[4],
+          });
+        }
+        break;
+      }
     }
   }
 
@@ -61,6 +76,7 @@ export async function extractMetadata(filePath: string): Promise<ActionMeta> {
       confirm: frontmatter.confirm ?? false,
       hidden: frontmatter.hidden ?? false,
       fullscreen: frontmatter.fullscreen ?? false,
+      inputs: frontmatter.inputs,
     };
   }
 

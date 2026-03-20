@@ -184,8 +184,70 @@ Available metadata keys:
 | \`confirm\`     | Require confirmation before running (true/false) |
 | \`hidden\`      | Hide from default listing (true/false)      |
 | \`fullscreen\`  | Use alternate screen buffer for ink actions (true/false) |
+| \`input\`       | Declare a user input (see below)            |
 
 If \`name\` is omitted, it is inferred from the filename (e.g. \`deploy-staging.sh\` → "Deploy Staging").
+
+## Declaring Inputs
+
+Actions can declare inputs that are collected before the script runs. Use one \`kadai:input\` line per input:
+
+\`\`\`
+# kadai:input <name>[?] <type> "<prompt>" [sensitive]
+\`\`\`
+
+- \`name\` — identifier used for env var injection; no spaces
+- \`?\` suffix — marks the input as optional (required by default)
+- \`type\` — one of \`string\`, \`boolean\`, \`number\`
+- \`"prompt"\` — text shown to the user (must be quoted)
+- \`sensitive\` — optional flag: masks the value in the UI and excludes it from \`.last-action\` so it is never persisted and always re-prompted on \`--rerun\`
+
+Use \`sensitive\` for passwords, tokens, and any value that should not be stored on disk.
+
+### Example
+
+\`\`\`bash
+#!/bin/bash
+# kadai:name Reset Database
+# kadai:description Drops and recreates the dev database
+# kadai:confirm true
+# kadai:input database_name string "Which database?"
+# kadai:input drop_data? boolean "Also drop all data?"
+# kadai:input db_password string "Database password?" sensitive
+
+echo "Resetting \${KADAI_INPUT_DATABASE_NAME}..."
+\`\`\`
+
+### How inputs are injected
+
+Each declared input value is provided to the script two ways:
+
+1. **Env var**: \`KADAI_INPUT_<NAME>\` (uppercased) — always set
+2. **Stdin**: values prepended in declaration order — so \`read\`, \`input()\`, \`gets\` etc. receive them automatically
+
+This means you can write interactive scripts normally and they just work:
+
+\`\`\`bash
+read -p "Which database? " DB   # receives the collected value from stdin
+echo "Resetting \$DB..."
+\`\`\`
+
+### How inputs surface in each context
+
+| Context | Behavior |
+|---------|----------|
+| Interactive menu | Pre-run form collects values before launching the script |
+| \`kadai run <id>\` | No collection — pass values via \`KADAI_INPUT_*\` env vars if needed |
+| \`kadai --rerun\` | Previously collected values are replayed automatically |
+| MCP tool call | Declared inputs become typed tool parameters (string/boolean/number) |
+
+### When authoring actions with inputs
+
+- Declare all interactive prompts as \`kadai:input\` if you want them to work via MCP or \`--rerun\`
+- Use \`?\` to mark optional inputs that have sensible defaults in the script
+- Use \`sensitive\` for any input that is a password, token, or secret — the value will not be saved to disk and will be re-prompted on \`--rerun\`
+- Prefer env var access (\`\$KADAI_INPUT_NAME\`) for clarity; stdin fallthrough is a convenience
+- Actions with undeclared \`read\` calls will still work interactively, but those prompts won't be surfaced to MCP clients
 
 Organize actions into categories using subdirectories:
 

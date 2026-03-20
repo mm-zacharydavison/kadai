@@ -1,12 +1,15 @@
 import { join } from "node:path";
+import type { InputValues, LastActionRecord } from "../types.ts";
 
 const LAST_ACTION_FILE = ".last-action";
 
 export async function saveLastAction(
   kadaiDir: string,
   actionId: string,
+  inputs: InputValues = {},
 ): Promise<void> {
-  await Bun.write(join(kadaiDir, LAST_ACTION_FILE), actionId);
+  const record: LastActionRecord = { actionId, inputs };
+  await Bun.write(join(kadaiDir, LAST_ACTION_FILE), JSON.stringify(record));
   await ensureGitignore(kadaiDir);
 }
 
@@ -28,9 +31,21 @@ async function ensureGitignore(kadaiDir: string): Promise<void> {
 
 export async function loadLastAction(
   kadaiDir: string,
-): Promise<string | null> {
+): Promise<LastActionRecord | null> {
   const file = Bun.file(join(kadaiDir, LAST_ACTION_FILE));
   if (!(await file.exists())) return null;
   const content = (await file.text()).trim();
-  return content || null;
+  if (!content) return null;
+
+  try {
+    const parsed = JSON.parse(content);
+    if (parsed && typeof parsed.actionId === "string") {
+      return { actionId: parsed.actionId, inputs: parsed.inputs ?? {} };
+    }
+  } catch {
+    // Fall through to backward-compat plain-text handling
+  }
+
+  // Backward compat: old format was a plain action ID string
+  return { actionId: content, inputs: {} };
 }

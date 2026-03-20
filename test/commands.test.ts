@@ -170,8 +170,9 @@ describe("kadai run <action-id>", () => {
       const { exitCode } = await session.waitForExit();
       expect(exitCode).toBe(0);
 
-      const lastAction = readFileSync(join(kadaiDir, ".last-action"), "utf8").trim();
-      expect(lastAction).toBe("hello");
+      const raw = readFileSync(join(kadaiDir, ".last-action"), "utf8");
+      const lastAction = JSON.parse(raw);
+      expect(lastAction.actionId).toBe("hello");
     } finally {
       rmSync(tmpDir, { recursive: true, force: true });
     }
