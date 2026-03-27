@@ -7,9 +7,8 @@ interface BreadcrumbsProps {
 export function Breadcrumbs({ path }: BreadcrumbsProps) {
   const parts = ["kadai", ...path];
   return (
-    <Box flexDirection="column">
+    <Box marginBottom={1}>
       <Text dimColor>{parts.join(" > ")}</Text>
-      <Text> </Text>
     </Box>
   );
 }
