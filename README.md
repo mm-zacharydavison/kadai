@@ -66,6 +66,7 @@ Add metadata as comments in the first 20 lines of any script:
 # kadai:emoji 🚀
 # kadai:description Deploy the app to staging
 # kadai:confirm true
+# kadai:index 10
 ```
 
 For JS/TS, use `//` comments:
@@ -74,16 +75,18 @@ For JS/TS, use `//` comments:
 // kadai:name Reset Database
 // kadai:emoji 🗑️
 // kadai:confirm true
+// kadai:index 20
 ```
 
-| Key           | Type    | Description                                |
-|---------------|---------|--------------------------------------------|
-| `name`        | string  | Display name (inferred from filename if omitted) |
-| `emoji`       | string  | Emoji prefix in menus                      |
-| `description` | string  | Short description                          |
-| `confirm`     | boolean | Require confirmation before running        |
-| `hidden`      | boolean | Hide from menu (still runnable via CLI)    |
-| `fullscreen`  | boolean | Use alternate screen buffer (`.tsx` only)  |
+| Key           | Type    | Description                                                        |
+|---------------|---------|--------------------------------------------------------------------|
+| `name`        | string  | Display name (inferred from filename if omitted)                   |
+| `emoji`       | string  | Emoji prefix in menus                                              |
+| `description` | string  | Short description                                                  |
+| `confirm`     | boolean | Require confirmation before running                                |
+| `hidden`      | boolean | Hide from menu (still runnable via CLI)                            |
+| `fullscreen`  | boolean | Use alternate screen buffer (`.tsx` only)                          |
+| `index`       | number  | Sort key for menu ordering (indexed actions appear before unindexed) |
 
 ### Ink TUI Actions
 
