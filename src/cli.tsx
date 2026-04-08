@@ -31,9 +31,12 @@ if (parsed.type === "mcp") {
     : cwd;
   await ensureMcpConfig(projectRoot);
   await startMcpServer(kadaiDir, cwd);
-  // Keep the process alive — the stdio transport holds the event loop open,
-  // but we must prevent the script from falling through to the TUI code below.
-  await new Promise(() => {});
+  // Exit when the MCP client disconnects (closes our stdin).
+  await new Promise<void>((resolve) => {
+    process.stdin.on("end", resolve);
+    process.stdin.on("close", resolve);
+  });
+  process.exit(0);
 }
 
 if (parsed.type === "list" || parsed.type === "run" || parsed.type === "sync" || parsed.type === "rerun") {
