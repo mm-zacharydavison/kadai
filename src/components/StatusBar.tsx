@@ -4,7 +4,8 @@ export function StatusBar() {
   const hints = "↑↓/j/k navigate  / search  esc back  q quit";
 
   return (
-    <Box marginTop={1} flexDirection="column">
+    <Box flexDirection="column">
+      <Text> </Text>
       <Text dimColor>{hints}</Text>
     </Box>
   );

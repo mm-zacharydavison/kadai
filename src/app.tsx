@@ -38,9 +38,7 @@ function MenuList({
           <Box key={`${i}-${item.value}`} width="100%">
             <Text color={selected ? "cyan" : undefined}>
               {selected ? "❯ " : "  "}
-            </Text>
-            {hasAnyNew && <Text>{item.isNew ? "✨ " : "   "}</Text>}
-            <Text color={selected ? "cyan" : undefined}>
+              {hasAnyNew ? (item.isNew ? "✨ " : "   ") : ""}
               {item.type === "category" ? (item.isPlugin ? "📦 " : "📁 ") : ""}
               {item.type === "action" && item.emoji ? `${item.emoji} ` : ""}
               {item.label}
